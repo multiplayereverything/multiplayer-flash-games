@@ -1,6 +1,7 @@
 #include "install.h"
 
 #include <algorithm>
+#include <ctime>
 #include <cwctype>
 #include <filesystem>
 #include <vector>
@@ -34,6 +35,21 @@ private:
 };
 
 std::wstring lastError(const wchar_t* what) { return std::wstring(what) + L": " + win32ErrorMessage(GetLastError()); }
+
+}  // namespace
+
+bool isRateLimitMessage(const std::wstring& text) { return text.rfind(L"GitHub only allows 60 requests", 0) == 0; }
+
+std::wstring rateLimitMessage(int64_t secondsLeft) {
+    if (secondsLeft < 1) secondsLeft = 1;
+    int64_t minutes = (secondsLeft + 59) / 60;
+    std::wstring wait = minutes <= 1 ? std::wstring(L"about a minute")
+                        : minutes < 60 ? std::to_wstring(minutes) + L" minutes"
+                                       : std::to_wstring(minutes / 60) + L" h " + std::to_wstring(minutes % 60) + L" min";
+    return L"GitHub only allows 60 requests an hour and that limit is used up. It answers again in " + wait + L".";
+}
+
+namespace {
 
 // GET `url`, following redirects (GitHub sends downloads to its CDN). The body
 // goes to `sink`; returns false with `error` set on failure or cancel.
@@ -80,6 +96,25 @@ bool httpGet(const std::wstring& url, const std::function<bool(const char*, size
                         &status, &size, WINHTTP_NO_HEADER_INDEX);
     if (status != 200) {
         error = std::wstring(host) + L" answered HTTP " + std::to_wstring(status);
+        // GitHub allows 60 requests an hour without signing in: say how long until it answers again.
+        if (status == 403 || status == 429) {
+            auto header = [&](const wchar_t* name) {
+                wchar_t v[64] = L"";
+                DWORD vsize = sizeof v;
+                std::wstring query = name;
+                return WinHttpQueryHeaders(req.get(), WINHTTP_QUERY_CUSTOM, query.c_str(), v, &vsize, WINHTTP_NO_HEADER_INDEX)
+                           ? std::wstring(v)
+                           : std::wstring();
+            };
+            std::wstring remaining = header(L"X-RateLimit-Remaining"), reset = header(L"X-RateLimit-Reset"),
+                         retry = header(L"Retry-After");
+            int64_t now = static_cast<int64_t>(std::time(nullptr));
+            int64_t resetAt = !reset.empty() ? _wcstoi64(reset.c_str(), nullptr, 10)
+                              : !retry.empty() ? now + _wcstoi64(retry.c_str(), nullptr, 10)
+                                               : 0;
+            if (resetAt > 0 && (remaining == L"0" || !retry.empty()))
+                error = rateLimitMessage(resetAt - now);
+        }
         return false;
     }
     if (contentLength) {

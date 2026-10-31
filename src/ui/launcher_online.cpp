@@ -505,7 +505,13 @@ void Launcher::startUpdateCheck() {
     updateThread_ = std::thread([wnd, selfUpdate, source, players, vars, this] {
         if (selfUpdate) {
             UpdateResult r = updateSelf(source, LAUNCHER_VERSION, fs::selfExePath(), &installCancel_);
-            if (!r.ok) logger().warn(L"Update check: " + r.error);
+            if (!r.ok) {
+                logger().warn(L"Update check: " + r.error);
+                if (isRateLimitMessage(r.error)) {
+                    PostMessageW(wnd, WM_APP_RATELIMIT, 0, reinterpret_cast<LPARAM>(new std::wstring(r.error)));
+                    return;  // the player check would only meet the same limit
+                }
+            }
             else if (!r.updated) logger().info(L"Launcher is up to date (newest release " + r.version + L")");
             else {
                 logger().info(L"Installed launcher " + r.version + L"; it runs from the next start");
@@ -517,7 +523,13 @@ void Launcher::startUpdateCheck() {
         // in a co-op session has to run the same build.
         for (const auto& p : players) {
             PlayerUpdate u = updateInstalledPlayer(p, vars, &installCancel_);
-            if (!u.error.empty()) logger().warn(p.name + L" update check: " + u.error);
+            if (!u.error.empty()) {
+                logger().warn(p.name + L" update check: " + u.error);
+                if (isRateLimitMessage(u.error)) {
+                    PostMessageW(wnd, WM_APP_RATELIMIT, 0, reinterpret_cast<LPARAM>(new std::wstring(u.error)));
+                    return;
+                }
+            }
             else if (u.updated)
                 PostMessageW(wnd, WM_APP_PLAYERUPDATED, 0,
                              reinterpret_cast<LPARAM>(new std::wstring(p.name + L" " + u.version)));

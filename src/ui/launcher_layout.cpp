@@ -362,8 +362,10 @@ void Launcher::layoutDetail() {
                 shown.insert(b);
                 bottom -= actionH + gap;
             }
-            EnableWindow(hostGameBtn_, !installing_);
-            EnableWindow(joinGameBtn_, !installing_);
+            // Without the game files (or the player) there is nothing to host or join: Download or Locate leads.
+            bool ready = coopReady(g);
+            EnableWindow(hostGameBtn_, ready && !installing_);
+            EnableWindow(joinGameBtn_, ready && !installing_);
         }
 
         // The game's settings, right above the action buttons (the last one lowest).

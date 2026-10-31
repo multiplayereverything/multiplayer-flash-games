@@ -592,6 +592,15 @@ TEST(shipped_config_keeps_chaos_faction_2_to_two_players_on_its_key_map) {
     }
 }
 
+TEST(rate_limit_message_says_how_long_is_left) {
+    CHECK(rateLimitMessage(20).find(L"about a minute") != std::wstring::npos);
+    CHECK(rateLimitMessage(61).find(L"2 minutes") != std::wstring::npos);
+    CHECK(rateLimitMessage(23 * 60).find(L"23 minutes") != std::wstring::npos);
+    CHECK(rateLimitMessage(3600).find(L"1 h 0 min") != std::wstring::npos);
+    CHECK(rateLimitMessage(-5).find(L"about a minute") != std::wstring::npos);
+    CHECK(isRateLimitMessage(rateLimitMessage(90)) && !isRateLimitMessage(L"api.github.com answered HTTP 403"));
+}
+
 TEST(catalog_settings_checkboxes_and_choices) {
     std::map<std::string, std::vector<Setting>> out;
     parseCatalogSettings(R"({ "files": [], "settings": {

@@ -1603,8 +1603,18 @@ bool Launcher::hostSetup(int gi, size_t& action) {
     return true;
 }
 
+bool Launcher::coopReady(const GameSpec& g) const {
+    for (const auto& a : g.actions)
+        if ((isCoopHostAction(a) || isCoopJoinAction(a)) && lib_.resolve(g, a, user_).state == ActionState::Ready) return true;
+    return false;
+}
+
 void Launcher::onHostGame() {
     if (selected_ < 0) return;
+    if (!coopReady(cfg_.games[selected_])) {
+        notice(cfg_.t("notice.needGame"), theme_.c.error);
+        return;
+    }
     size_t action = 0;
     if (!hostSetup(selected_, action)) return;
     runAction(selected_, action);
@@ -1614,6 +1624,10 @@ void Launcher::onJoinGame() {
     if (selected_ < 0) return;
     int gi = selected_;
     const GameSpec& g = cfg_.games[gi];
+    if (!coopReady(g)) {
+        notice(cfg_.t("notice.needGame"), theme_.c.error);
+        return;
+    }
     // The clipboard is only a guess for the box: friends usually copy the code or address first.
     std::wstring clip = clipboardText();
     std::wstring typed = textPrompt(true, cfg_.t("button.joinGame"), cfg_.t("join.body"), cfg_.t("join.label"), cfg_.t("join.ok"),

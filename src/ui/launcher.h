@@ -466,6 +466,7 @@ private:
     bool coopFlow(const GameSpec& g) const;
     std::vector<HostChoice> hostChoices(const GameSpec& g) const;
     bool hostSetup(int gi, size_t& action);
+    bool coopReady(const GameSpec& g) const;  // a host or join action of the game can start right now
     void onHostGame();
     void onJoinGame();
     static LRESULT CALLBACK hostProc(HWND h, UINT m, WPARAM w, LPARAM l);

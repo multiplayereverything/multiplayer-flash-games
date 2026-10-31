@@ -244,6 +244,7 @@ const std::vector<std::pair<std::string, std::wstring>>& defaultTexts() {
         {"coopSave.new", L"New game"},
         {"coopSave.replaces", L"This replaces your co-op progress for ${GAME} the first time the game saves."},
         {"coopSave.progress", L"Co-op progress saved."},
+        {"notice.needGame", L"The game is not installed yet. Download or locate its files first."},
         {"coopSave.needs", L"Needs Ruffle Together ${VERSION} or newer."},
         {"detail.players", L"Players"},
         {"detail.controls", L"Controls"},
