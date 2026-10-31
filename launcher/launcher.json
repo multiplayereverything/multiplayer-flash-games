@@ -2440,7 +2440,7 @@
     {
       // Made by someone else and installed with its own setup program: the launcher only links to it.
       "id": "mdk2-coop",
-      "name": "MDK2 HD Co-op",
+      "name": "MDK2 HD",
       "players": "2-16 players (alpha)",
       "categories": ["community"],
       "maxPlayers": 4,
@@ -2472,7 +2472,7 @@
     },
     {
       "id": "witness-coop",
-      "name": "The Witness Co-op",
+      "name": "The Witness",
       "players": "Dev preview",
       "categories": ["community"],
       "maxPlayers": 4,
@@ -2499,7 +2499,7 @@
     },
     {
       "id": "gta-coop",
-      "name": "GTA San Andreas Co-op",
+      "name": "GTA San Andreas",
       "site": "gta",
       "players": "2-4 players (co-op)",
       "categories": ["pc", "coop"],
@@ -2579,7 +2579,7 @@
     },
     {
       "id": "spore-coop",
-      "name": "Spore Co-op",
+      "name": "Spore",
       "players": "2-4 players (co-op)",
       "categories": ["community"],
       "guide": {
@@ -2675,7 +2675,7 @@
     },
     {
       "id": "little-nightmares-coop",
-      "name": "Little Nightmares Split-screen",
+      "name": "Little Nightmares",
       "players": "2 players (same PC)",
       "categories": ["community"],
       "guide": {
@@ -2751,7 +2751,7 @@
     },
     {
       "id": "forager-coop",
-      "name": "Forager Co-op",
+      "name": "Forager",
       "players": "2-4 players (online co-op)",
       "categories": ["community"],
       "guide": {
@@ -2787,7 +2787,7 @@
       "actions": [
         {
           "id": "page",
-          "label": "Forager Co-op on GitHub",
+          "label": "Mod on GitHub",
           "icon": "E774",
           "description": "By melogo5: github.com/melogo5/forager-coop",
           "link": "https://github.com/melogo5/forager-coop"
