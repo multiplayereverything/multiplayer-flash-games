@@ -2421,9 +2421,18 @@
           }
         ]
       },
+      "actions": [
+        {
+          "id": "page",
+          "label": "SporeCoop on GitHub",
+          "icon": "E774",
+          "description": "By WoodyWizard: github.com/WoodyWizard/SporeCoop",
+          "link": "https://github.com/WoodyWizard/SporeCoop"
+        }
+      ],
       "color": "#3E9C7A",
       "colorEnd": "#0C2A22",
-      "description": "Co-op for Spore with Galactic Adventures (GOG and Steam) by WoodyWizard: two to four friends evolve in one world through every stage, from the cell to space. Made by WoodyWizard, not by us: github.com/WoodyWizard/SporeCoop. Everyone needs the same version.",
+      "description": "Co-op for Spore with Galactic Adventures (GOG and Steam) by WoodyWizard: two to four friends evolve in one world through every stage, from the cell to space. Made by WoodyWizard, not by us. Everyone needs the same version.",
       "mod": {
         "id": "spore-coop",
         "publisher": "WoodyWizard",
@@ -2502,9 +2511,18 @@
           }
         ]
       },
+      "actions": [
+        {
+          "id": "page",
+          "label": "Mod on GitHub",
+          "icon": "E774",
+          "description": "By vladimirwoxi: github.com/vladimirwoxi/little-nightmares-1-coop",
+          "link": "https://github.com/vladimirwoxi/little-nightmares-1-coop"
+        }
+      ],
       "color": "#8A7A2B",
       "colorEnd": "#241F0A",
-      "description": "Split-screen co-op for Little Nightmares (2017) Enhanced Edition by vladimirwoxi: two players on one PC, two gamepads, one half of the screen each. Not online. Made by vladimirwoxi, not by us: github.com/vladimirwoxi/little-nightmares-1-coop",
+      "description": "Split-screen co-op for Little Nightmares (2017) Enhanced Edition by vladimirwoxi: two players on one PC, two gamepads, one half of the screen each. Not online. Made by vladimirwoxi, not by us.",
       "mod": {
         "id": "little-nightmares-coop",
         "publisher": "vladimirwoxi",

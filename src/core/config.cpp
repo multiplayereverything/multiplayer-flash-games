@@ -1145,11 +1145,19 @@ LoadResult loadConfig(std::string_view jsonText, const std::wstring& configDir) 
                     g.actions.push_back(readAction(actions->at(j), where + L"." + indexPath(L"actions", j), issues));
             }
             if (auto mv = s.get("mod", Type::Object)) {
-                if (!g.actions.empty())
-                    issues.push_back({ConfigIssue::Severity::Error, where + L".actions",
-                                      L"a mod game gets its buttons from the launcher; remove \"actions\""});
+                // The launcher makes the install / launch buttons; the only buttons a mod game may add are links
+                // (the mod's own page), which come after them.
+                std::vector<ActionSpec> links;
+                for (size_t j = 0; j < g.actions.size(); ++j) {
+                    if (g.actions[j].isLink()) links.push_back(std::move(g.actions[j]));
+                    else
+                        issues.push_back({ConfigIssue::Severity::Error, where + L"." + indexPath(L"actions", j),
+                                          L"a mod game gets its buttons from the launcher; only a \"link\" action can be added"});
+                }
+                g.actions.clear();
                 g.mod = std::make_shared<const mod::Spec>(readMod(*mv, g, s.child("mod"), issues));
                 addModActions(g);
+                for (auto& l : links) g.actions.push_back(std::move(l));
             }
             if (g.name.empty()) g.name = widen(g.id);
             c.games.push_back(std::move(g));
