@@ -2581,7 +2581,7 @@
       "id": "spore-coop",
       "name": "Spore Co-op",
       "players": "2-4 players (co-op)",
-      "categories": ["pc", "community"],
+      "categories": ["community"],
       "guide": {
         "needs": [
           "Your own copy of Spore with Galactic Adventures, from GOG or Steam (the current builds). Other copies start without co-op.",
