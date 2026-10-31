@@ -332,6 +332,7 @@ void Launcher::layoutDetail() {
             bool modWorking = a.isMod() && modJobGame_ == selected_ && a.modOp == modJobOp_;
             btnInfo_[b].busy = starting || modWorking;
             btnInfo_[b].progress = modWorking;
+            if (a.isLink()) btnInfo_[b].style = BtnStyle::Link;
             MoveWindow(b, x, bottom - actionH, w, actionH, TRUE);
             shown.insert(b);
             bottom -= actionH + gap;

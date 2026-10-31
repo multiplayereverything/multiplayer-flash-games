@@ -435,6 +435,13 @@ void Launcher::drawButton(HWND button, HDC hdc, RECT r, UINT state) {
                 fill = hover ? t.c.surfaceHover : under;
                 border = hover ? t.c.border : under;
                 break;
+            case BtnStyle::Link:
+                // A page of someone else's (the mod's repository): amber, so it is not mistaken for an action
+                // of ours. The label is pulled toward the text color to keep 4.5:1 on the tint in both themes.
+                fill = hover ? mix(t.c.surfaceHover, t.c.warning, 0.22f) : mix(t.c.surfaceHover, t.c.warning, 0.15f);
+                text = mix(t.c.warning, t.c.text, 0.55f);
+                border = mix(t.c.surfaceHover, t.c.warning, 0.5f);
+                break;
             case BtnStyle::Danger:
                 fill = hover ? mix(t.c.surfaceHover, t.c.error, 0.22f) : mix(t.c.surfaceHover, t.c.error, 0.15f);
                 text = mix(t.c.error, Color{255, 255, 255, 255}, 0.35f);  // plain error red is under 4.5:1 on the tint
@@ -498,6 +505,7 @@ void Launcher::drawButton(HWND button, HDC hdc, RECT r, UINT state) {
             }
             drawText(g, label, top, t.button, text, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
             Color subColor = info.style == BtnStyle::Primary && info.ready ? t.c.onPrimary
+                             : info.style == BtnStyle::Link                 ? t.c.text
                              : info.ready                                   ? t.c.textMuted
                                                                             : t.c.warning;
             drawText(g, info.sub, bottom, t.caption, subColor, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);

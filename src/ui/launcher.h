@@ -84,7 +84,7 @@ private:
         std::wstring text;
         int role = 0;  // 0 heading, 1 muted label, 2 address
     };
-    enum class BtnStyle { Primary, Secondary, Ghost, Danger, Check, Tab };
+    enum class BtnStyle { Primary, Secondary, Ghost, Danger, Check, Tab, Link };
     struct BtnInfo {
         BtnStyle style = BtnStyle::Secondary;
         std::wstring sub;    // second, smaller line
