@@ -1,6 +1,8 @@
 #include "core/mod/package.h"
 
 #include <filesystem>
+#include <cwctype>
+#include <vector>
 
 #include "core/fs.h"
 #include "core/json.h"
@@ -169,7 +171,27 @@ bool unpackZip(const std::wstring& archive, const std::wstring& destDir, std::ws
 
 namespace {
 
+// A mod that is a single file (a DLL released on its own) is not a zip: its file name comes from the address, and
+// only a plain one is accepted.
+bool plainFileNameOf(const std::wstring& url, std::wstring& name) {
+    size_t cut = url.find_first_of(L"?#");
+    std::wstring u = cut == std::wstring::npos ? url : url.substr(0, cut);
+    size_t slash = u.find_last_of(L'/');
+    name = slash == std::wstring::npos ? u : u.substr(slash + 1);
+    if (name.empty() || name.size() > 80 || name == L"." || name == L"..") return false;
+    for (wchar_t c : name)
+        if (!(iswalnum(c) || c == L'.' || c == L'-' || c == L'_')) return false;
+    return true;
+}
+
+bool isZipFile(const std::wstring& path) {
+    std::vector<uint8_t> head;
+    if (!fs::readFile(path, head) || head.size() < 4) return false;
+    return head[0] == 'P' && head[1] == 'K' && head[2] == 3 && head[3] == 4;
+}
+
 // Downloads one zip, checks it and unpacks it into `dest`. `sha256` empty: GitHub's digest for the address.
+// A download that is not a zip is checked the same way and put into `dest` under its own name.
 bool fetchAndUnpack(const std::wstring& root, const std::wstring& name, const std::wstring& url, std::wstring sha256,
                     const std::wstring& dest, const std::wstring& githubApi, const InstallProgress& progress,
                     const std::atomic<bool>* cancel, std::wstring& error) {
@@ -192,6 +214,19 @@ bool fetchAndUnpack(const std::wstring& root, const std::wstring& name, const st
         return false;
     }
     std::wstring archive = fs::join(root, name);
+    if (!isZipFile(archive)) {
+        std::wstring fileName;
+        if (!plainFileNameOf(url, fileName)) {
+            error = L"The download is not a zip and its name is not a plain file name";
+            return false;
+        }
+        if (!fs::ensureDir(dest, nullptr, nullptr) || !MoveFileExW(fs::longPath(archive).c_str(),
+                                                                   fs::longPath(fs::join(dest, fileName)).c_str(), 0)) {
+            error = L"Could not put " + fileName + L" in the package folder";
+            return false;
+        }
+        return true;
+    }
     if (!unpackZip(archive, dest, error)) return false;
     DeleteFileW(fs::longPath(archive).c_str());
     return true;
