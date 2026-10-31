@@ -90,3 +90,25 @@ Mods we make ourselves skip steps 1 and 3 (and can use "newest release", step 5)
 - [ ] If the author stops answering or the mod breaks the game, take the entry out. That also removes its Uninstall button
       for players who already installed it, so say in the release notes how to remove it by hand (delete the mod's folder under
       `BepInEx\plugins`), or keep the entry for one more release with its install disabled.
+
+## Community mods (made by someone else)
+
+A mod whose repository is not under `multiplayereverything` is a community mod. We list it, credit the author and
+pin the version; we do not vouch for it beyond what we read.
+
+- [ ] **Ask first.** Full support (the launcher installs it) or only a link to its GitHub page? The owner decides, every time.
+- [ ] **Category** is `["community"]` and nothing else. Not `pc`, not `coop`.
+- [ ] **Name** the card after the game ("Forager", "MDK2 HD", "Spore"), never "<game> Co-op" or "Split-screen".
+- [ ] **Credit the author and the repository**: `mod.publisher` and `mod.website`, a "Made by X, not by Multiplayer Everything" line
+      in the guide tips, a labelled link in `guide.links`, and a link action (the amber button) whose second line names the author
+      and the repo. A mod game may carry link actions and nothing else besides the launcher's own buttons.
+- [ ] **Pin one release.** Whatever version is in the entry is what every player installs: `package.version`, `package.url`
+      (the release asset, never a branch, "latest" or GitHub's generated source zip) and `package.sha256` of the exact file you
+      opened. The file may be a zip or a single file such as a `.dll`; either way the hash must match.
+- [ ] **Hash at download only.** The launcher checks the SHA-256 when it downloads the file and refuses a mismatch. It does not
+      watch the installed files afterwards: what a player does with their own game folder is their choice.
+- [ ] **Updating is manual.** When the author publishes a newer release, read what changed (steps 3 and 6 above), and only then
+      change `version`, `url` and `sha256` together. A new release never reaches players on its own.
+- [ ] Say what is not tested (a Steam copy, the internet, a Windows build) in the guide tips, as the author's own README does.
+- [ ] Never edit or rebuild the mod itself here, and the website lists it with `origin: "community"` and `reviewed: false`
+      until someone has read its code.

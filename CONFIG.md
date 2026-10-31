@@ -285,12 +285,13 @@ adopted: use the same `mod.id` and `install` layout and the launcher sees it as 
 | `launch` | `uri` is opened (a `steam://` address), else `executable` with `arguments`. |
 | `package.github`, `asset` | The mod's GitHub repository (`"owner/repo"`) and a file name pattern (`"MiSideTogether-*.zip"`): the launcher installs the newest release (pre-releases count) and takes the SHA-256 GitHub publishes for the file. |
 | `package.modsInfo` | The mod's id in mods-info. `latest_version`, `download_url` and `download_sha256` come from `mods/<id>.json`. |
-| `package.url`, `sha256` | A package pinned in `launcher.json` instead. |
+| `package.url`, `sha256`, `version` | A package pinned in `launcher.json` instead. `version` is what the window shows and compares: change it with the url, so a new pin counts as an update. The download may be a `.zip` or a single file (a `.dll`), placed in the package folder under its own name; it is checked against `sha256` when it is downloaded, and only then. For a community mod see [docs/ADDING_A_MOD.md](docs/ADDING_A_MOD.md#community-mods-made-by-someone-else). |
 | `components[].targetName` | Installs a single-file `source` under another file name (`coop_eax.dll` as `eax.dll`). |
 | `components[].sourceGame` | Instead of `source`: a copy of a file the game folder already has, the first of this list that exists, installed under `targetName` (or its own name). For a loader that wraps one of the game's own files and needs the original beside it: `["eax_orig.dll", "eax.dll"]` with `"targetName": "eax_orig.dll"` keeps an update from copying the wrapper over the copy. List it before the component that replaces the original. |
 | `package.extras[]` | A second download unpacked beside the package under `dir` (components then use `"<dir>/..."` as their `source`), usually the mod loader from its own release: `{ "dir": "loader", "github": "BepInEx/BepInEx", "tag": "v5.4.23.5", "asset": "BepInEx_win_x64_5.4.23.5.zip" }`, or a `url`. Its checksum is GitHub's, or `sha256` you pin. |
+| `actions[]` on a mod game | Only `link` actions: the mod's own page, shown after the launcher's Install and Launch buttons in the amber link style. |
 | `install.requires[]` | `{ "path", "message" }`: a file the game folder must already have (a loader the launcher can't download with a checksum). While it's missing, Install is off and the message is shown. |
 
-A package is a `.zip` laid out as the `components[].source` folders expect. It is downloaded
+A package is a `.zip` (or one file) laid out as the `components[].source` folders expect. It is downloaded
 only over `https://`, and **only installed when its SHA-256 is known**: from `download_sha256`,
 from the `sha256` pin, or from GitHub for a release asset. See [docs/MOD_PACKAGES.md](docs/MOD_PACKAGES.md).
