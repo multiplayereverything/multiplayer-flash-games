@@ -345,9 +345,9 @@ void Launcher::createControls() {
     }
     for (const char* key : {"coopSave.continue", "coopSave.solo", "coopSave.new"})
         SendMessageW(saveCombo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(cfg_.t(key).c_str()));
-    favBtn_ = makeButton(kIdFav, BtnStyle::Ghost);
-    folderBtn_ = makeButton(kIdFolder, BtnStyle::Ghost);
-    aboutBtn_ = makeButton(kIdAbout, BtnStyle::Ghost);
+    favBtn_ = makeButton(kIdFav, BtnStyle::Secondary);
+    folderBtn_ = makeButton(kIdFolder, BtnStyle::Secondary);
+    aboutBtn_ = makeButton(kIdAbout, BtnStyle::Secondary);
     guideBack_ = makeButton(kIdGuideBack, BtnStyle::Secondary);
     for (int i = 0; i < static_cast<int>(kGuideMaxLinks); ++i) guideLinkBtns_.push_back(makeButton(kIdGuideLink0 + i, BtnStyle::Secondary));
     locateBtn_ = makeButton(kIdLocate, BtnStyle::Secondary);
