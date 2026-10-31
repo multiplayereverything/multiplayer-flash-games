@@ -2391,7 +2391,7 @@
       "id": "spore-coop",
       "name": "Spore Co-op",
       "players": "2-4 players (co-op)",
-      "categories": ["pc", "coop"],
+      "categories": ["pc", "community"],
       "guide": {
         "needs": [
           "Your own copy of Spore with Galactic Adventures, from GOG or Steam (the current builds). Other copies start without co-op.",
@@ -2423,7 +2423,7 @@
       },
       "color": "#3E9C7A",
       "colorEnd": "#0C2A22",
-      "description": "Co-op for Spore with Galactic Adventures (GOG and Steam) by WoodyWizard: two to four friends evolve in one world through every stage, from the cell to space. Everyone needs the same version.",
+      "description": "Co-op for Spore with Galactic Adventures (GOG and Steam) by WoodyWizard: two to four friends evolve in one world through every stage, from the cell to space. Made by WoodyWizard, not by us: github.com/WoodyWizard/SporeCoop. Everyone needs the same version.",
       "mod": {
         "id": "spore-coop",
         "publisher": "WoodyWizard",
@@ -2478,7 +2478,7 @@
       "id": "little-nightmares-coop",
       "name": "Little Nightmares Split-screen",
       "players": "2 players (same PC)",
-      "categories": ["pc", "coop"],
+      "categories": ["pc", "community"],
       "guide": {
         "needs": [
           "Your own copy of Little Nightmares (2017) Enhanced Edition. The mod was tested on one non-Steam copy only; a Steam copy may not work.",
@@ -2504,7 +2504,7 @@
       },
       "color": "#8A7A2B",
       "colorEnd": "#241F0A",
-      "description": "Split-screen co-op for Little Nightmares (2017) Enhanced Edition by vladimirwoxi: two players on one PC, two gamepads, one half of the screen each. Not online.",
+      "description": "Split-screen co-op for Little Nightmares (2017) Enhanced Edition by vladimirwoxi: two players on one PC, two gamepads, one half of the screen each. Not online. Made by vladimirwoxi, not by us: github.com/vladimirwoxi/little-nightmares-1-coop",
       "mod": {
         "id": "little-nightmares-coop",
         "publisher": "vladimirwoxi",
