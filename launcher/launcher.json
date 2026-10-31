@@ -2677,7 +2677,7 @@
       "id": "little-nightmares-coop",
       "name": "Little Nightmares Split-screen",
       "players": "2 players (same PC)",
-      "categories": ["pc", "community"],
+      "categories": ["community"],
       "guide": {
         "needs": [
           "Your own copy of Little Nightmares (2017) Enhanced Edition. The mod was tested on one non-Steam copy only; a Steam copy may not work.",

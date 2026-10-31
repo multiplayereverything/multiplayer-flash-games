@@ -575,21 +575,23 @@ TEST(catalog_settings_accept_the_live_dad_n_me_camera_choice) {
     CHECK(cam.choices[2].args.size() == 2 && cam.choices[2].args[1] == L"camera=zoom");
 }
 
-TEST(shipped_config_keeps_chaos_faction_2_to_two_players_on_its_key_map) {
+TEST(shipped_config_keeps_chaos_faction_2_to_six_players_on_its_key_map) {
     std::wstring path = fs::join(fs::parent(fs::parent(fs::parent(fs::selfExePath()))), L"launcher\\launcher.json");
     if (!fs::isFile(path)) path = L"launcher\\launcher.json";
     LoadResult r = loadConfigFile(path);
     REQUIRE(r.ok());
     const GameSpec* g = r.config.findGame("chaosfaction2");
     REQUIRE(g != nullptr);
-    CHECK(g->maxPlayers == 2);
+    CHECK(g->maxPlayers == 6);
+    int rooms = 0;
     for (const auto& a : g->actions) {
-        CHECK(a.id != "room3" && a.id != "room4" && a.id != "host3" && a.id != "host4");
+        if (a.id.rfind("room", 0) == 0 || (a.id.rfind("host", 0) == 0 && a.id.size() > 4)) ++rooms;
         bool keyed = false;
         for (size_t i = 0; i + 1 < a.args.size(); ++i)
             if (a.args[i] == L"--coop-keys") keyed = a.args[i + 1] == L"chaos-faction-2";
         if (!a.args.empty()) CHECK(keyed);
     }
+    CHECK(rooms == 8);  // a room and an IP host for 3, 4, 5 and 6 players
 }
 
 TEST(rate_limit_message_says_how_long_is_left) {
