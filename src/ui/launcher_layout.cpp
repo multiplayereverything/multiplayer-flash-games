@@ -351,6 +351,7 @@ void Launcher::layoutDetail() {
             SetWindowTextW(quickBtn_, cfg_.t("button.quickPlay").c_str());
             btnInfo_[quickBtn_].sub = cfg_.t(busiest ? "button.quickJoin" : "button.quickHost");
             MoveWindow(quickBtn_, x, bottom - actionH, w, actionH, TRUE);
+            EnableWindow(quickBtn_, joinReady(g));
             shown.insert(quickBtn_);
             bottom -= actionH + gap;
         }
@@ -438,6 +439,7 @@ void Launcher::layoutDetail() {
         MoveWindow(tabCodeEdit_, dl_.codeBox.left + t.s(12), dl_.codeBox.top + (rowH - lineH) / 2,
                    width(dl_.codeBox) - t.s(20), lineH, TRUE);
         MoveWindow(tabCodeBtn_, x + w - jbw, bottom - rowH, jbw, rowH, TRUE);
+        EnableWindow(tabCodeBtn_, selected_ < 0 || joinReady(cfg_.games[selected_]));
         shown.insert(tabCodeEdit_);
         shown.insert(tabCodeBtn_);
         bottom -= rowH + t.s(14);

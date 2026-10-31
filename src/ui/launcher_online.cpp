@@ -324,14 +324,29 @@ void Launcher::joinByCode(HWND edit, int gi) {
         SetFocus(pageGameCombo_);
         return;
     }
+    if (!joinReady(cfg_.games[gi])) {
+        notice(cfg_.t("notice.needGame"), theme_.c.error);
+        return;
+    }
     RoomInfo room;
     room.code = code;
     joinListedRoom(gi, room);
     SetWindowTextW(edit, L"");
 }
 
+bool Launcher::joinReady(const GameSpec& g) const {
+    if (g.joinAction.empty() || g.actions.empty()) return true;
+    const ActionSpec& a = g.actions[joinActionIndex(g)];
+    if (a.isMod() || a.isLink()) return true;  // PC mods and the lobby check their own requirements
+    return lib_.resolve(g, a, user_).state == ActionState::Ready;
+}
+
 void Launcher::quickPlay() {
     if (selected_ < 0) return;
+    if (!joinReady(cfg_.games[selected_])) {
+        notice(cfg_.t("notice.needGame"), theme_.c.error);
+        return;
+    }
     if (usesLobby(selected_)) {
         lobbyQuick(selected_);
         return;
