@@ -73,7 +73,7 @@ A new game or mod never needs a code change: everything lives in `launcher.json`
   folder) and each game's `.swf` in `games\` or your Flashpoint folder. Anything missing gets a button that fixes it: *Locate game
   file...* or *Install Ruffle Together*.
 - **Installs Ruffle Together for you.** Without it, the launcher offers
-  to install it: it downloads the newest release from our ruffle-coop
+  to install it: it downloads the newest release from our ruffle-together
   GitHub page, checks it against the published SHA-256 checksum, and unpacks it
   into `players\ruffle-together\`. Nothing is downloaded without your OK.
 - **Player slots.** Every game shows how many players it takes, in the players'

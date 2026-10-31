@@ -160,7 +160,7 @@ bool resolveSourceUncached(const Spec& spec, const std::wstring& modsInfoBase, S
     if (!spec.package.url.empty()) {
         out.url = spec.package.url;
         out.sha256 = toLower(spec.package.sha256);
-        if (out.version.empty()) out.version = L"1";
+        out.version = !spec.package.version.empty() ? spec.package.version : out.version.empty() ? L"1" : out.version;
     }
     for (const auto& e : spec.package.extras) {
         ExtraDownload d;
@@ -188,7 +188,7 @@ bool resolveSourceUncached(const Spec& spec, const std::wstring& modsInfoBase, S
 
 // What the answer depends on: a changed recipe never reuses an old answer.
 std::string sourceSignature(const Spec& spec) {
-    std::string sig = narrow(spec.package.github + L"|" + spec.package.asset + L"|" + spec.package.url);
+    std::string sig = narrow(spec.package.github + L"|" + spec.package.asset + L"|" + spec.package.url + L"|" + spec.package.version);
     for (const auto& e : spec.package.extras)
         sig += "|" + narrow(e.dir + L"," + e.github + L"," + e.tag + L"," + e.asset + L"," + e.url + L"," + e.sha256);
     return sig;

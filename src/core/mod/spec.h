@@ -92,6 +92,8 @@ struct Package {
     // Where the newest version comes from, first that is set: a pinned url, a GitHub repository's
     // newest release (pre-releases count; its asset matching `asset`), or the mod's file in mods-info.
     std::wstring modsInfo, url, sha256;
+    // What a pinned url is called (shown, and compared to see if an update is waiting): bump it with the url.
+    std::wstring version;
     std::wstring github, asset;
     std::vector<ExtraPackage> extras;
 };

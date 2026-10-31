@@ -898,6 +898,7 @@ mod::Spec readMod(const Value& v, const GameSpec& game, const std::wstring& wher
         ps.str("modsInfo", m.package.modsInfo);
         ps.str("url", m.package.url);
         ps.str("sha256", m.package.sha256);
+        ps.str("version", m.package.version);
         ps.str("github", m.package.github);
         ps.str("asset", m.package.asset);
         if (auto ex = ps.get("extras", Type::Array))
