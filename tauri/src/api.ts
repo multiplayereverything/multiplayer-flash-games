@@ -222,6 +222,14 @@ export async function restoreWindow(): Promise<void> {
   }
 }
 
+// A Windows notification, only while the launcher isn't the window in front (a friend joined, say).
+export async function notify(title: string, body: string): Promise<void> {
+  if (!live || document.hasFocus()) return
+  const n = await import('@tauri-apps/plugin-notification')
+  if (!(await n.isPermissionGranted()) && (await n.requestPermission()) !== 'granted') return
+  n.sendNotification({ title, body })
+}
+
 // The window draws its own title bar, so its three buttons call these.
 export async function windowControl(what: 'minimize' | 'maximize' | 'close'): Promise<void> {
   if (!live) return

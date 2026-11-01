@@ -10,7 +10,7 @@ import { SettingsPage } from './SettingsPage'
 import { SetupPage } from './SetupPage'
 import { Switcher, type SwitchTarget } from './Switcher'
 import {
-  downloadGame, launch, live, loadLibrary, loadMods, loadAllRooms, minimizeWindow, modJob, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
+  downloadGame, launch, live, loadLibrary, loadMods, loadAllRooms, minimizeWindow, modJob, notify, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setSetting, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room, type Rooms, type Settings,
 } from './api'
@@ -173,6 +173,11 @@ export default function App() {
   // Hosting with the built-in relay, per game: the launcher session and what it last reported.
   const [hosting, setHosting] = useState<Record<string, { session: number; relay: RelayStatus }>>({})
   const [downloading, setDownloading] = useState<Set<string>>(new Set())
+  // The latest hosting reports and library, for event handlers registered once.
+  const hostingRef = useRef(hosting)
+  hostingRef.current = hosting
+  const libRef = useRef(lib)
+  libRef.current = lib
   const search = useRef<HTMLInputElement>(null)
   const main = useRef<HTMLElement>(null)
 
@@ -273,7 +278,16 @@ export default function App() {
       say(e.ok ? 'Done.' : e.line || 'The mod job failed.', e.ok ? 'ok' : 'error')
       refreshMods()
     })
-    const c = onHostStatus((e) => setHosting((h) => ({ ...h, [e.game]: { session: e.session, relay: e.relay } })))
+    const c = onHostStatus((e) => {
+      // Who is new since the last report: a notification for each, when the launcher is behind the game.
+      const before = new Set((hostingRef.current[e.game]?.relay.peers ?? []).filter((p) => !p.host).map((p) => p.name || p.address))
+      const game = libRef.current?.games.find((g) => g.id === e.game)?.name ?? 'your game'
+      for (const p of e.relay.peers.filter((x) => !x.host)) {
+        const who = p.name || p.address
+        if (!before.has(who)) void notify(`${who} joined`, `${who} is in your ${game} room.`)
+      }
+      setHosting((h) => ({ ...h, [e.game]: { session: e.session, relay: e.relay } }))
+    })
     const d = onDownloadEnded((e) => {
       setDownloading((s) => {
         const n = new Set(s)
