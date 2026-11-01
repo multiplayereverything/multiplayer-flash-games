@@ -39,3 +39,33 @@ its ideas, not its code: nothing here is copied from it, so our license is unaff
 
 The grade, version and sync dots come from `--list --json`. Each game now carries a `site` object, read from the
 website's games.json that the C++ launcher caches.
+
+## Ideas from other software (ideas only, in our own style)
+
+- **Steam:**
+  - The friends row became "Open right now": the games with rooms on the central server, most players first.
+  - Its updates row became "Recently updated", from the website's dates.
+  - The header for a game without wide art shows the cover blurred and dark, with the sharp cover in front.
+  - Play from the grid.
+- **Discord:**
+  - Ctrl+K finds a game or a page by name or initials.
+  - A notification when a friend joins your room while the launcher is behind the game.
+- **Playnite and GOG Galaxy:** a controller and the arrow keys move the focus, and Large or Compact cards.
+- **RecompLauncher:** the first-run setup's step-by-step shape, built around this launcher's needs (name, Ruffle
+  Together, your PC games, the files folder, a few choices).
+
+## Parity with the C++ panel
+
+These come from the C++ launcher through its command line (`--launch --wait`, `--coop-save`, `--rooms all`,
+`--update-players`, and the fields of `--list --json`):
+- Quick play, including for lobby games.
+- The co-op save choice, each game's own settings, and the player choice per game.
+- The download offer when Play meets a missing file.
+- Community mod credit.
+- Room counts on cards and the server's ping.
+- Ruffle Together kept up to date.
+- Discord status while a game runs.
+- Each action's hint after it starts.
+- Compact cards.
+- The light theme.
+- A modded game that is open says to close it first.
