@@ -24,6 +24,7 @@ export interface Action {
   asksAddress: boolean
   state?: 'ready' | 'noPlayer' | 'noFile' | 'noRuntime'
   player?: string | null
+  playerId?: string | null
   file?: string
 }
 

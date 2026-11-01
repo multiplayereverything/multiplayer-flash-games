@@ -116,7 +116,7 @@ const scenarios = {
   async library() {
     const counts = await waitFor(async () => {
       const c = await wd.exec("return Object.fromEntries([...document.querySelectorAll('.navs .nav')].map(b => [b.querySelector('.lbl')?.textContent, b.querySelector('.n')?.textContent ?? '']))")
-      return c['All games'] === '6' && c
+      return c['All games'] === '7' && c
     })
     await check('the sidebar counts every game', !!counts, JSON.stringify(counts))
     await check('the sidebar counts each category', counts && counts['Flash mods'] === '5' && counts['PC mods'] === '1' && counts['Online multiplayer'] === '3')
@@ -130,7 +130,7 @@ const scenarios = {
     await wd.click(button('A to Z'))
     const names = await waitFor(async () => {
       const n = await wd.exec("return [...document.querySelectorAll('.card-c .name')].map(e => e.textContent)")
-      return n.length === 6 && n
+      return n.length === 7 && n
     })
     await check('A to Z sorts by name', !!names && names.join('|') === [...names].sort((a, b) => a.localeCompare(b)).join('|'), names?.join(', '))
     await wd.click(button('Compact'))
@@ -321,6 +321,14 @@ const scenarios = {
     await check('chat reaches the room', !!(await waitFor(async () => (await wd.exec("return document.querySelector('.chat-lines')?.textContent ?? ''")).includes('hello lab'), 8000)))
     await wd.click(button('Leave room'))
     await check('Leave room goes back to the game', !!(await waitFor(() => wd.exec("return document.querySelector('h1')?.getAttribute('aria-label')"))))
+  },
+
+  async offer() {
+    await openGame('Ruffle Test')
+    await wd.click(panel('Play'))
+    await check('Play without its player offers to install it', !!(await wd.find("//div[@role='dialog']//h2[normalize-space(.)='Install Ruffle Together?']", 4000).catch(() => null)))
+    await wd.click(inDialog('Not now'))
+    await check('Not now leaves it for later', (await wd.count("//div[@role='dialog']")) === 0)
   },
 
   async firstrun() {

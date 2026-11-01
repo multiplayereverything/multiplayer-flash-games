@@ -10,7 +10,7 @@ import { SettingsPage } from './SettingsPage'
 import { SetupPage } from './SetupPage'
 import { Switcher, type SwitchTarget } from './Switcher'
 import {
-  downloadGame, launch, live, loadLibrary, loadMods, loadAllRooms, minimizeWindow, modJob, notify, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
+  downloadGame, launch, live, loadLibrary, loadMods, installPlayer, loadAllRooms, minimizeWindow, modJob, notify, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setSetting, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room, type Rooms, type Settings,
 } from './api'
@@ -158,6 +158,9 @@ export default function App() {
   const [allRooms, setAllRooms] = useState<Record<string, Rooms> | null>(null)
   const [switcher, setSwitcher] = useState(false)
   const [lobbyQuick, setLobbyQuick] = useState(false)
+  // Play met a missing Flash player: the C++ window offers to install it there and then.
+  const [offerPlayer, setOfferPlayer] = useState<{ id: string; name: string } | null>(null)
+  const [installingPlayer, setInstallingPlayer] = useState(false)
   // A game whose file is missing, opened from a Play outside its page: its page offers the download at once.
   const [askDownload, setAskDownload] = useState('')
   // The first-run setup: opens when the launcher starts without a player name (the C++ window asks for one then
@@ -328,6 +331,13 @@ export default function App() {
         setAskDownload(game.id)
         go('game', game.id)
         return
+      }
+      if (action.state === 'noPlayer') {
+        const p = lib?.players.find((x) => x.id === action.playerId) ?? lib?.players.find((x) => x.installable && !x.found)
+        if (p?.installable) {
+          setOfferPlayer({ id: p.id, name: p.name })
+          return
+        }
       }
       if (action.state && action.state !== 'ready') {
         say(`${game.name}: ${action.state === 'noPlayer' ? 'no Flash player found' : 'its server program is missing'}.`, 'error')
@@ -712,6 +722,27 @@ export default function App() {
         </footer>
       </div>
 
+      {offerPlayer && (
+        <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && !installingPlayer && setOfferPlayer(null)}>
+          <div className="dialog" role="dialog" aria-modal="true" aria-label={`Install ${offerPlayer.name}?`}>
+            <h2>{(lib.text['install.title'] ?? 'Install ${PLAYER}?').replace('${PLAYER}', offerPlayer.name)}</h2>
+            <p className="dialog-note">{lib.text['install.firstRun'] ?? "No Flash player was found on this PC, so games can't start yet."} The launcher downloads the latest release, checks it, and keeps it with the launcher's own files.</p>
+            <div className="dialog-row">
+              <button className="btn" disabled={installingPlayer} onClick={() => setOfferPlayer(null)}>{lib.text['install.no'] ?? 'Not now'}</button>
+              <button className="btn next" disabled={installingPlayer} onClick={() => {
+                setInstallingPlayer(true)
+                installPlayer(offerPlayer.id)
+                  .then(() => (say((lib.text['update.player'] ?? '${PLAYER} is installed.').replace('${PLAYER}', offerPlayer.name), 'ok'), refresh()))
+                  .catch((e) => say(String(e), 'error'))
+                  .finally(() => {
+                    setInstallingPlayer(false)
+                    setOfferPlayer(null)
+                  })
+              }}>{installingPlayer ? 'Installing...' : (lib.text['install.yes'] ?? 'Install ${PLAYER}').replace('${PLAYER}', offerPlayer.name)}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {switcher && (
         <Switcher lib={lib} onClose={() => setSwitcher(false)}
           pages={[

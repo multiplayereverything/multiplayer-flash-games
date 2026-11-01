@@ -116,6 +116,8 @@ export function makeSandbox(work, fakePlayer) {
       },
       { id: 'dlgame', name: 'Download Test', players: '1-2 players', categories: ['flash'], description: 'Its file comes from the catalog.',
         actions: [{ id: 'play', label: 'Play', swf: swf('dl.swf') }] },
+      { id: 'ruffleonly', name: 'Ruffle Test', players: '1-2 players', description: 'Only runs in Ruffle Together, which is not installed yet.',
+        actions: [{ id: 'play', label: 'Play', swf: swf('coop.swf'), players: ['ruffle'] }] },
       { id: 'locgame', name: 'Locate Test', players: '1-2 players', categories: ['flash'], description: 'Its file is somewhere else on this PC.',
         actions: [{ id: 'play', label: 'Play', swf: swf('nowhere.swf') }] },
       {
