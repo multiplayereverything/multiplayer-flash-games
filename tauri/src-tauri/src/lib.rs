@@ -48,6 +48,18 @@ async fn mods() -> Result<serde_json::Value, String> {
     blocking(|| engine::run_json(&["--mods".into(), "--json".into()])).await
 }
 
+/// Downloads and installs a player that has an "install" entry, such as Ruffle Together (`--install-player <id>`):
+/// what the C++ launcher does on its first start, shown as a step of the first-run setup here.
+#[tauri::command]
+async fn install_player(player: String) -> Result<(), String> {
+    let o = blocking(move || engine::run(&["--install-player".into(), player])).await?;
+    if o.code == 0 {
+        return Ok(());
+    }
+    let text = if o.stderr.trim().is_empty() { o.stdout } else { o.stderr };
+    Err(text.trim().lines().last().unwrap_or("The player couldn't be installed").to_string())
+}
+
 /// A game's open rooms on the central server (`--rooms <id> --json`).
 #[tauri::command]
 async fn rooms(game: String) -> Result<serde_json::Value, String> {
@@ -337,7 +349,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             library, mods, rooms, launch, stop_session, mod_job, download_game, set_favorite, set_setting, set_game_dir,
-            set_game_file, lobby_start, lobby_send, open
+            set_game_file, lobby_start, lobby_send, open, install_player
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

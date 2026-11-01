@@ -373,3 +373,39 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
 .card.pinned .joined { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; }
 .card.pinned .joined span { display: inline-flex; align-items: center; gap: 6px; }
 .card.pinned .joined i { width: 10px; height: 10px; border-radius: 2px; }
+
+/* ---------- first-run setup ---------- */
+.setup { height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+.setup-top { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 6px 0 24px; }
+.setup-top .word b { font: 19.3px var(--font-title); }
+.setup-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 32px; text-align: center; }
+.setup-body.fwd > * { animation: slideIn .3s var(--ease) both; }
+.setup-body.back > * { animation: slideBack .3s var(--ease) both; }
+.setup-body > :nth-child(2) { animation-delay: 40ms; }
+.setup-body > :nth-child(3) { animation-delay: 80ms; }
+.setup-body > :nth-child(4) { animation-delay: 120ms; }
+.setup-body h1 { font-size: clamp(34px, 4.4vw, 52px); }
+.setup-body .lead { color: var(--muted); font-size: 15px; max-width: 560px; }
+.setup-body .hint { color: var(--muted); font-size: 12px; }
+.setup-slots { display: flex; gap: 8px; margin-bottom: 8px; }
+.pslot.big { flex: none; min-width: 84px; height: 46px; padding: 0 14px; font-size: 19px; animation: rise .45s var(--ease) both; }
+.feats { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: 12px; margin-top: 18px; text-align: left; }
+.feat-card { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 12px; background: var(--card); border: 1px solid var(--line2); }
+.feat-card .ic { color: var(--muted); margin-bottom: 4px; }
+.feat-card b { font: 17.3px var(--font-title); font-weight: 400; }
+.feat-card span:last-child { color: var(--muted); font-size: 12.5px; }
+.namebox { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.namebox .pslot.big { max-width: 220px; }
+.namebox .field { width: 280px; height: 46px; font-size: 16px; }
+.setup-card { width: min(620px, 100%); text-align: left; padding: 4px 20px; gap: 0; }
+.setup-card .set-row { gap: 14px; }
+.setup-card .path { font-family: var(--font-body); font-weight: 600; overflow-wrap: anywhere; }
+.setup-foot { flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 18px 24px 22px; }
+.setup-foot .slot-r { justify-self: end; }
+.dots { display: flex; gap: 6px; align-items: center; }
+.dots i { width: 8px; height: 8px; border-radius: 4px; background: var(--card3); transition: width .3s var(--ease), background .3s; }
+.dots i.past { background: var(--muted); }
+.dots i.on { width: 26px; background: var(--ink); }
+/* Moving on is neutral: red stays for Start playing. */
+.btn.next { background: var(--ink); color: var(--bg); border-color: var(--ink); min-width: 120px; }
+.btn.next:hover { background: #fff; }

@@ -7,10 +7,11 @@ import { Cover } from './Cover'
 import { GamePage, type PageActions } from './GamePage'
 import { LobbyPage } from './LobbyPage'
 import { SettingsPage } from './SettingsPage'
+import { SetupPage } from './SetupPage'
 import {
   downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, restoreWindow, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
-  type Game, type Library, type ModInfo, type RelayStatus, type Room,
+  type Game, type Library, type ModInfo, type RelayStatus, type Room, type Settings,
 } from './api'
 import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
 import { Glyph, Pips, Seg, Shelf, Tile } from './ui'
@@ -162,6 +163,9 @@ export default function App() {
   }, [cat, sort])
   // The central server, as the C++ status bar shows it: asked once through a game's room list.
   const [server, setServer] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown')
+  // The first-run setup: opens when the launcher starts without a player name (the C++ window asks for one then
+  // too), decided once so saving the name doesn't close it, and again from Settings.
+  const [setupOpen, setSetupOpen] = useState<boolean | null>(null)
   const [query, setQuery] = useState('')
   const [mini, setMini] = useState(false)
   const [favs, setFavs] = useState<Set<string>>(new Set())
@@ -182,6 +186,7 @@ export default function App() {
     try {
       const l = await loadLibrary()
       setLib(l)
+      setSetupOpen((open) => open ?? !l.user.playerName)
       setFavs(new Set(Object.entries(l.user.games).filter(([, s]) => s.favorite).map(([id]) => id)))
     } catch (e) {
       setLoadError(String(e))
@@ -446,6 +451,21 @@ export default function App() {
     )
   }
 
+  const changed = (s: Partial<Settings>) => {
+    setLib((l) => (l ? { ...l, user: { ...l.user, ...s } } : l))
+    if ('gamesDir' in s || 'defaultPlayer' in s) refresh()  // file states depend on these
+  }
+
+  if (setupOpen) {
+    return (
+      <SetupPage lib={lib} mods={mods} onChanged={changed} onRefresh={refresh} onRefreshMods={refreshMods}
+        onDone={() => {
+          setSetupOpen(false)
+          go('home')
+        }} />
+    )
+  }
+
   const playLead = (g: Game) => {
     const a = leadAction(g)
     if (a) actions.run(g, a)
@@ -469,10 +489,7 @@ export default function App() {
   let page: ReactNode
   if (view === 'settings') {
     page = (
-      <SettingsPage lib={lib} onChanged={(s) => {
-        setLib((l) => (l ? { ...l, user: { ...l.user, ...s } } : l))
-        if ('gamesDir' in s || 'defaultPlayer' in s) refresh()  // file states depend on these
-      }} />
+      <SettingsPage lib={lib} onChanged={changed} onRunSetup={() => setSetupOpen(true)} />
     )
   } else if (view === 'lobby' && pageGame) {
     page = <LobbyPage game={pageGame} lib={lib} onClose={back} />

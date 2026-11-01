@@ -59,13 +59,24 @@ export function makeSandbox(work, fakePlayer) {
     download_sha256: sha256(zip), changelog_url: '', relay: { mode: 'tunnel', max_players: 4, server: 'main' }, notice: '', updated: '2026-11-01',
   }))
 
+  // A stand-in for Ruffle Together that the first-run setup installs from the local server. It never runs: the
+  // fake player comes first in the list, so games keep starting that one.
+  const ruffleSrc = join(work, 'ruffle-src')
+  write(join(ruffleSrc, 'ruffle.exe'), 'not a real player')
+  const ruffleZip = join(work, 'www', 'ruffle.zip')
+  execFileSync('powershell', ['-NoProfile', '-Command', `Compress-Archive -Path '${ruffleSrc}\\*' -DestinationPath '${ruffleZip}'`])
+
   const swf = (name) => [`\${GAMES_DIR}\\${name}`]
   const config = {
     branding: { title: 'Multiplayer Everything', subtitle: 'Test lab' },
     paths: { games: '${LAUNCHER_DIR}\\games', players: '${LAUNCHER_DIR}\\players', data: '${LAUNCHER_DIR}\\data', flashpoint: [] },
     downloads: { catalog: `http://127.0.0.1:${PORTS.http}/catalog.json`, modsInfo: `http://127.0.0.1:${PORTS.http}/` },
     rooms: { server: `127.0.0.1:${PORTS.rooms}`, refreshSeconds: 10 },
-    players: [{ id: 'fake', name: 'Fake Player', paths: [fakePlayer], args: ['--fake-player'], flashvarArg: '-P${KEY}=${VALUE}' }],
+    players: [
+      { id: 'fake', name: 'Fake Player', paths: [fakePlayer], args: ['--fake-player'], flashvarArg: '-P${KEY}=${VALUE}' },
+      { id: 'ruffle', name: 'Ruffle Together', paths: ['${PLAYERS_DIR}\\ruffle\\ruffle.exe'],
+        install: { url: `http://127.0.0.1:${PORTS.http}/ruffle.zip`, sha256: sha256(ruffleZip), dir: '${PLAYERS_DIR}\\ruffle', exe: 'ruffle.exe' } },
+    ],
     categories: [
       { id: 'flash', name: 'Flash mods', group: 'platform' }, { id: 'pc', name: 'PC mods', group: 'platform' },
       { id: 'online', name: 'Online multiplayer' }, { id: 'coop', name: 'Co-op' },

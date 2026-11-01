@@ -137,6 +137,7 @@ export const stopSession = (session: number): Promise<void> => (live ? invoke('s
 export const downloadGame = (game: string): Promise<void> => (live ? invoke('download_game', { game }) : Promise.resolve())
 export const setSetting = (key: keyof Settings, value: string | boolean): Promise<void> =>
   live ? invoke('set_setting', { key, value }) : Promise.resolve()
+export const installPlayer = (player: string): Promise<void> => (live ? invoke('install_player', { player }) : Promise.resolve())
 export const setGameDir = (game: string, dir: string): Promise<void> => (live ? invoke('set_game_dir', { game, dir }) : Promise.resolve())
 export const setGameFile = (game: string, action: string, file: string): Promise<void> =>
   live ? invoke('set_game_file', { game, action, file }) : Promise.resolve()

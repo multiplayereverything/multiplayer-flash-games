@@ -14,7 +14,7 @@ function Row({ title, note, children }: { title: string; note?: string; children
   )
 }
 
-export function SettingsPage({ lib, onChanged }: { lib: Library; onChanged: (s: Partial<Settings>) => void }) {
+export function SettingsPage({ lib, onChanged, onRunSetup }: { lib: Library; onChanged: (s: Partial<Settings>) => void; onRunSetup: () => void }) {
   const t = (k: string, fallback: string) => (lib.text[k] ?? fallback).replace('${VERSION}', lib.launcherVersion).replace(/…|…/g, '...')
   const u = lib.user
   const [name, setName] = useState(u.playerName)
@@ -90,6 +90,7 @@ export function SettingsPage({ lib, onChanged }: { lib: Library; onChanged: (s: 
 
       <div className="set-foot">
         <span>{t('settings.about', 'Multiplayer Everything Launcher')}</span>
+        <button className="btn sm" onClick={onRunSetup}>Run setup again</button>
         {lib.website && <button className="linkbtn" onClick={() => open(lib.website)}><ExternalLink size={14} />{t('settings.github', 'Project page')}</button>}
       </div>
       {error && <p className="error-text">{error}</p>}

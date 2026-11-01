@@ -300,6 +300,54 @@ const scenarios = {
     await check('Leave room goes back to the game', !!(await waitFor(() => wd.exec("return document.querySelector('h1')?.getAttribute('aria-label')"))))
   },
 
+  async firstrun() {
+    // A new player: no name in settings.json, then the launcher starts.
+    const s = settings()
+    delete s.playerName
+    writeFileSync(box.settings, JSON.stringify(s))
+    await wd.exec('location.reload()')
+    await check('the setup opens by itself on a first run', !!(await wd.find("//h1[starts-with(normalize-space(.),'Welcome to')]", 15000).catch(() => null)))
+    await wd.click(button('Continue'))
+    await check('Continue needs a name', (await wd.exec("return [...document.querySelectorAll('.setup-foot button')].find(b => b.textContent === 'Continue')?.disabled")) === true)
+    await wd.type("//input[@aria-label='Your name']", 'First Player')
+    await wd.click(button('Continue'))
+    await check('saving the name keeps the setup open', !!(await wd.find("//h1[normalize-space(.)='The Flash player']", 4000).catch(() => null)))
+    for (let i = 0; i < 6 && (await wd.count(button('Start playing'))) === 0; i++) await wd.click(`//div[contains(@class,'slot-r')]//button`)
+    await wd.click(button('Start playing'))
+    await check('a finished setup opens the launcher', !!(await wd.find("//nav[contains(@class,'navs')]").catch(() => null)))
+    await check('the first-run name is saved', settings().playerName === 'First Player')
+  },
+
+  async setup() {
+    await wd.click("//button[contains(@class,'setbtn')]")
+    await wd.click(button('Run setup again'))
+    await check('Run setup again opens the setup', !!(await wd.find("//h1[starts-with(normalize-space(.),'Welcome to')]").catch(() => null)))
+    await wd.click(button('Continue'))
+    await wd.type("//input[@aria-label='Your name']", 'Lab Player')
+    await check('the name shows in the P1 slot as it is typed', (await wd.exec("return document.querySelector('.namebox .pslot')?.textContent")) === 'Lab Player')
+    await wd.click(button('Continue'))
+    await check('the name is saved', (await waitFor(() => settings().playerName === 'Lab Player')) === true)
+    await check('the Flash player step offers the install', (await wd.count(button('Install'))) === 1)
+    await wd.click(button('Install'))
+    await check('Install downloads the Flash player', !!(await waitFor(async () => (await wd.count("//span[@aria-label='Installed']")) === 1, 20000)))
+    await check('the player is in the players folder', existsSync(join(work, 'players', 'ruffle', 'ruffle.exe')))
+    await wd.click(button('Continue'))
+    await check('the PC games step lists the PC game', !!(await waitFor(async () => (await wd.exec("return document.querySelector('.setup-card')?.textContent ?? ''")).includes('Fake Game'), 10000)))
+    await wd.click(button('Continue'))
+    await check('the folder step shows the games folder', (await wd.exec("return document.querySelector('.setup-card .path')?.textContent ?? ''")).includes('games'))
+    await wd.click(button('Continue'))
+    const before = settings().showOffline === true
+    await wd.click("//button[@role='switch' and contains(@aria-label,'offline')]")
+    await check('a choice is saved as it is switched', (await waitFor(() => (settings().showOffline === true) !== before)) === true)
+    await wd.click(button('Continue'))
+    await check('the last step greets you by name', (await wd.exec("return document.querySelector('.setup-slots')?.textContent ?? ''")).includes('Lab Player'))
+    await wd.click(button('Back'))
+    await check('Back goes to the previous step', !!(await wd.find("//h1[normalize-space(.)='A few choices']", 4000).catch(() => null)))
+    await wd.click(button('Continue'))
+    await wd.click(button('Start playing'))
+    await check('Start playing opens the launcher', !!(await wd.find("//nav[contains(@class,'navs')]").catch(() => null)))
+  },
+
   async stats() {
     // A game played and closed, so the play is counted.
     await openGame('Relay Test')
