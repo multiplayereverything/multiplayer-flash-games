@@ -443,6 +443,7 @@ const scenarios = {
     await check('Ctrl+K opens a page', !!(await wd.find("//h1[normalize-space(.)='Settings']", 4000).catch(() => null)))
     await wd.exec("document.documentElement.dataset.theme = 'light'")
     await check('the light theme switches the palette', (await wd.exec("return getComputedStyle(document.body).backgroundColor")) === 'rgb(255, 255, 255)')
+    await check('the selected sidebar row stays dark in the light theme', (await wd.exec("return getComputedStyle(document.querySelector('.nav.on, .setbtn.on')).backgroundColor")) === 'rgb(43, 50, 72)')
     await wd.exec("document.documentElement.dataset.theme = 'dark'")
   },
 

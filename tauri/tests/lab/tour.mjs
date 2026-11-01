@@ -34,6 +34,8 @@ try {
   await wd.start(app)
   await wd.find("//nav[contains(@class,'navs')]", 40000)
   await sleep(4000)  // the rooms and covers
+  // TOUR_THEME=light: the launcher.json light palette, for checking it without another config.
+  if (process.env.TOUR_THEME) await wd.exec('document.documentElement.dataset.theme = arguments[0]', process.env.TOUR_THEME)
   await shot('home')
   await wd.click(nav('All games'))
   await shot('library')
