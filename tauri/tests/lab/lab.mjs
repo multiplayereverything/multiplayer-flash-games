@@ -263,6 +263,13 @@ const scenarios = {
     await check('Download fetches the file from the catalog', (await waitFor(async () => (await pill()).includes('Ready'), 20000)) === true, await pill())
     const file = join(work, 'games', 'dl.swf')
     await check('the downloaded file is in the games folder', existsSync(file) && readFileSync(file, 'utf8') === 'pretend game file')
+    // The cached catalog now names a newer build of that file: the game shows an update, as the C++ card does.
+    const cat = JSON.parse(readFileSync(join(work, 'www', 'catalog.json'), 'utf8'))
+    cat.files[0].sha256 = '1'.repeat(64)
+    writeFileSync(join(work, 'data', 'catalog.json'), JSON.stringify(cat))
+    await wd.exec("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F5' }))")
+    await check('a newer build in the catalog shows as an update', (await waitFor(async () => (await pill()).includes('Update available'), 10000)) === true, await pill())
+    await check('the update can be downloaded', (await wd.count(panel('Download the update'))) === 1)
   },
 
   async locate() {

@@ -410,6 +410,10 @@ export function GamePage({
                 <PanelButton icon="E8E5" label="Locate the game file" sub="A copy you already have" onClick={() => actions.locate(game, fileAct)} />
               </>
             )}
+            {game.outdated && !fileMissing && (
+              <PanelButton icon="E896" label={downloading ? 'Downloading...' : 'Download the update'} disabled={downloading}
+                sub="A newer build of the game file, checked by SHA-256" onClick={() => actions.download(game)} />
+            )}
             {!game.comingSoon && game.lobby && (
               <PanelButton primary={!fileMissing} icon="E774" label="Play online" sub="Host a room or join one" onClick={() => actions.openLobby(game)} />
             )}

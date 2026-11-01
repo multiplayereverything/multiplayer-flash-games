@@ -14,7 +14,7 @@ const action = (a: Partial<Action> & { id: string }): Action => ({
 const game = (g: Partial<Game> & { actions: Action[] }): Game => ({
   id: 'g', name: 'Game', description: '', players: '1-4 players (online co-op)', maxPlayers: 4, color: '', colorEnd: '', image: '',
   imageFocus: 0.5, onlineId: '', joinAction: '', comingSoon: false, lobby: false, categories: [],
-  guide: { needs: [], steps: [], tips: [], links: [] }, ...g,
+  guide: { needs: [], steps: [], tips: [], links: [] }, settings: [], player: '', outdated: false, ...g,
 })
 const lib = { text: {}, user: { games: {} } } as unknown as Library
 const shown = { showOffline: false, showOriginals: false }
@@ -75,6 +75,10 @@ test('the state line for Flash games', () => {
 
 test('a game played from its own page is ready', () => {
   assert.equal(statusOf(game({ actions: [action({ id: 'page', link: 'https://example.com', state: undefined })] }), lib, null, false).kind, 'ready')
+})
+
+test('a game file with a newer build in the catalog shows an update', () => {
+  assert.equal(statusOf(game({ outdated: true, actions: [action({ id: 'play' })] }), lib, null, false).kind, 'update')
 })
 
 test('the state line for PC mods', () => {

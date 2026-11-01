@@ -52,6 +52,7 @@ export interface Game {
   settings: GameSetting[]
   coopSave?: { supported: boolean; since: string; progress: boolean }
   player: string  // the player picked for this game; empty = automatic
+  outdated: boolean  // the game catalog has a newer build of its file
 }
 
 export interface GameSetting {
@@ -316,7 +317,7 @@ function sampleLibrary(): Library {
       onlineId: g.online?.id ?? '', joinAction: g.online ? 'online' : '', comingSoon: SAMPLE_SOON.has(g.id), lobby: false, categories: g.categories ?? [],
       mod: g.mod ? { modName: g.name, publisher: g.mod.publisher ?? '', website: g.mod.website ?? '', gameName: g.mod.gameName ?? g.name, pinnedVersion: '' } : undefined,
       guide: { needs: [], steps: [], tips: [], links: g.actions.filter((a) => a.link).map((a) => ({ label: a.label, url: a.link! })) },
-      settings: [], player: '',
+      settings: [], player: '', outdated: false,
       actions: g.mod
         ? ['install', 'update', 'launch', 'repair', 'uninstall'].map((op) => action({ id: op, label: op, mod: op }))
         : g.online
