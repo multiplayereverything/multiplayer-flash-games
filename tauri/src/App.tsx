@@ -157,6 +157,7 @@ export default function App() {
   const [pingMs, setPingMs] = useState<number | null>(null)
   const [allRooms, setAllRooms] = useState<Record<string, Rooms> | null>(null)
   const [switcher, setSwitcher] = useState(false)
+  const [lobbyQuick, setLobbyQuick] = useState(false)
   // A game whose file is missing, opened from a Play outside its page: its page offers the download at once.
   const [askDownload, setAskDownload] = useState('')
   // The first-run setup: opens when the launcher starts without a player name (the C++ window asks for one then
@@ -199,6 +200,19 @@ export default function App() {
     refresh()
     refreshMods()
   }, [refresh, refreshMods])
+
+  // Coming back to the window: whether a modded game is still open may have changed (the C++ window polls it).
+  // At most every 30 seconds, since each look asks mods-info.
+  const modsAt = useRef(Date.now())
+  useEffect(() => {
+    const onFocus = () => {
+      if (Date.now() - modsAt.current < 30000) return
+      modsAt.current = Date.now()
+      void refreshMods()
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [refreshMods])
 
   const anyOnline = !!lib?.user.online && !!lib?.games.some((g) => g.onlineId && !g.comingSoon)
   const roomsServer = lib?.roomsServer ?? ''
@@ -327,7 +341,10 @@ export default function App() {
         })
         .catch((e) => say(String(e), 'error'))
     },
-    openLobby: (game) => go('lobby', game.id),
+    openLobby: (game, quick) => {
+      setLobbyQuick(!!quick)
+      go('lobby', game.id)
+    },
     refresh: () => void refresh(),
     stopHosting: (session) => {
       stopSession(session)
@@ -564,7 +581,7 @@ export default function App() {
       <SettingsPage lib={lib} onChanged={changed} onRunSetup={() => setSetupOpen(true)} />
     )
   } else if (view === 'lobby' && pageGame) {
-    page = <LobbyPage game={pageGame} lib={lib} onClose={back} />
+    page = <LobbyPage game={pageGame} lib={lib} quick={lobbyQuick} onClose={back} />
   } else if (view === 'game' && pageGame) {
     page = (
       <GamePage key={pageGame.id} game={pageGame} lib={lib} mods={mods} playing={playingIds.has(pageGame.id)}

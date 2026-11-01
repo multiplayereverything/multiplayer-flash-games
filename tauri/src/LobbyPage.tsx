@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Copy, Send } from 'lucide-react'
 import {
-  copyText, lobbySend, lobbyStart, onLobby, type Game, type Library, type LobbyRequest, type LobbySnapshot,
+  copyText, loadRooms, lobbySend, lobbyStart, onLobby, type Game, type Library, type LobbyRequest, type LobbySnapshot,
 } from './api'
 import { Seg, Switch } from './ui'
 
-export function LobbyPage({ game, lib, onClose }: { game: Game; lib: Library; onClose: () => void }) {
+export function LobbyPage({ game, lib, quick, onClose }: { game: Game; lib: Library; quick?: boolean; onClose: () => void }) {
   const t = (k: string, fallback: string, vars: Record<string, string> = {}) =>
     Object.entries(vars).reduce((s, [key, v]) => s.replace('${' + key + '}', v), lib.text[k] ?? fallback)
   const [room, setRoom] = useState<LobbySnapshot | null>(null)
@@ -62,6 +62,18 @@ export function LobbyPage({ game, lib, onClose }: { game: Game; lib: Library; on
       .catch((e) => setNote(String(e)))
   }
   const host = () => start({ op: 'host', direct, roomName: roomName.trim(), password, public: isPublic, maxPlayers, port })
+
+  // Quick play, as the C++ lobby does it: the busiest public room with space, or a new room when there is none.
+  const quickDone = useRef(false)
+  useEffect(() => {
+    if (!quick || quickDone.current) return
+    quickDone.current = true
+    loadRooms(game.id)
+      .then((r) => r.rooms.filter((x) => !x.locked && (x.max <= 0 || x.players < x.max)).sort((a, b) => b.players - a.players)[0])
+      .catch(() => undefined)
+      .then((busiest) => (busiest ? start({ op: 'join', direct: false, code: busiest.code, password: '' })
+        : start({ op: 'host', direct: false, roomName: `${lib.user.playerName || 'My'}'s room`, password: '', public: true, maxPlayers: Math.max(2, game.maxPlayers || 4), port: 7790 })))
+  })
   const join = () => {
     const code = target.replace(/[^a-z0-9]/gi, '').toUpperCase()
     if (direct) start({ op: 'join', direct: true, address: target.trim(), password })

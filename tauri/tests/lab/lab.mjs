@@ -431,6 +431,43 @@ const scenarios = {
     await wd.exec("document.documentElement.dataset.theme = 'dark'")
   },
 
+  async pad() {
+    // A controller, as the Gamepad API reports one: the D-pad moves the focus, A presses, Y searches.
+    await wd.click(nav('All games'))
+    await wd.find("//button[contains(@class,'card-c')]")
+    await wd.exec(`window.__pad = { buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] }
+      navigator.getGamepads = () => [window.__pad]
+      window.dispatchEvent(new Event('gamepadconnected'))
+      document.querySelector('.card-c').focus()`)
+    await check('a controller shows its own hints', !!(await waitFor(async () => (await wd.exec("return document.querySelector('.statusbar .hints')?.textContent ?? ''")).includes('Select'), 4000)))
+    const press = async (i) => {
+      await wd.exec('window.__pad.buttons[arguments[0]].pressed = true', i)
+      await new Promise((r) => setTimeout(r, 120))
+      await wd.exec('window.__pad.buttons[arguments[0]].pressed = false', i)
+      await new Promise((r) => setTimeout(r, 120))
+    }
+    const first = await wd.exec('return document.activeElement?.textContent')
+    await press(15)
+    await check('the D-pad moves between cards', (await wd.exec('return document.activeElement?.textContent')) !== first)
+    await press(0)
+    await check('A opens the card in focus', !!(await wd.find("//h1[@aria-label]", 4000).catch(() => null)))
+    await press(1)
+    await press(3)
+    await check('Y goes to the search', (await wd.exec("return document.activeElement?.getAttribute('placeholder')")) === 'Search games and mods')
+    await wd.exec("navigator.getGamepads = () => []; window.dispatchEvent(new Event('gamepaddisconnected'))")
+  },
+
+  async lobbyquick() {
+    await openGame('Lobby Test')
+    await wd.click(panel('Quick play'))
+    // The sandbox's central server lists rooms but doesn't speak the lobby, so joining ends at "Can't connect":
+    // what counts is that Quick play went straight for the busiest room without the setup form's buttons.
+    const went = await waitFor(async () => (await wd.count("//button[normalize-space(.)='Leave room']")) > 0 ||
+      (await wd.exec("return document.querySelector('.lobby-note')?.textContent ?? ''")).length > 0, 10000)
+    await check('Quick play on a lobby game goes straight for a room', !!went)
+    if ((await wd.count("//button[normalize-space(.)='Leave room']")) > 0) await wd.click(button('Leave room'))
+  },
+
   async stats() {
     // A game played and closed, so the play is counted.
     await openGame('Relay Test')

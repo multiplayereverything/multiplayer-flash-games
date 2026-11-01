@@ -146,7 +146,7 @@ export interface PageActions {
   run: (game: Game, action: Action, code?: string, address?: string, coopSave?: string) => void
   refresh: () => void
   modOp: (game: Game, op: 'install' | 'repair' | 'uninstall') => void
-  openLobby: (game: Game) => void
+  openLobby: (game: Game, quick?: boolean) => void
   stopHosting: (session: number) => void
   download: (game: Game) => void
   locate: (game: Game, action: Action) => void
@@ -255,7 +255,7 @@ export function GamePage({
   }, [game.id, online, lib.user.online])
   const busiest = (rooms ?? []).filter((r) => r.max <= 0 || r.players < r.max).sort((a, b) => b.players - a.players)[0]
   const quickPlay = () => {
-    if (game.lobby) return actions.openLobby(game)
+    if (game.lobby) return actions.openLobby(game, true)
     const byCode = joinByCode(game)
     if (busiest && byCode) return run(byCode, busiest.code)
     const host = game.actions.find((a) => a.id === game.joinAction) ?? byCode
@@ -281,6 +281,7 @@ export function GamePage({
   if (game.mod && !game.comingSoon) {
     if (!mod) modButtons = <PanelButton label="Checking..." sub="Asking mods-info for the newest version" disabled />
     else if (busy) modButtons = <PanelButton primary label="Working..." sub={modLine || 'Starting'} disabled />
+    else if (mod.running) modButtons = <PanelButton label={t('mod.status.running', 'Close ${GAME_NAME} first', { GAME_NAME: modName })} sub="The mod can't change while the game is open" warn disabled />
     else if (!mod.gameFound)
       modButtons = (
         <>
