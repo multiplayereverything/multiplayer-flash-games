@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Cover } from './Cover'
 import type { Game, Library, ModInfo } from './api'
-import { statusOf } from './model'
+import { stateLine } from './model'
 
 export function Pips({ n, colors }: { n: number; colors: string[] }) {
   return (
@@ -39,13 +39,6 @@ export function GradeChip({ grade, size = 22 }: { grade: string; size?: number }
   )
 }
 
-// What the card's last line says and in which color, as the C++ card's stateText.
-export function stateLine(game: Game, lib: Library, mods: Record<string, ModInfo> | null, playing: boolean): { text: string; tone: string } {
-  const st = statusOf(game, lib, mods, playing)
-  const tone = st.kind === 'ready' || st.kind === 'installed' ? 'ok' : st.kind === 'playing' ? 'online' : st.kind === 'soon' || st.kind === 'checking' ? 'muted' : 'warn'
-  return { text: st.text, tone }
-}
-
 // A card as the C++ library draws one: the art across the top with its badges, then the name in the condensed
 // display font, the player pips and count, and the state. The selected card has a white outline.
 export function Tile({ game, lib, mods, playing, favorite, selected, onOpen }: TileProps & { selected?: boolean }) {
@@ -54,7 +47,7 @@ export function Tile({ game, lib, mods, playing, favorite, selected, onOpen }: T
   const notOnServer = game.site?.status === 'not-on-server'
   return (
     <div className="tile">
-      <button className={`card-c ${selected ? 'sel' : ''}`} onClick={onOpen} aria-label={`${game.name}, ${game.players}, ${line.text}`}
+      <button className={`card-c ${selected ? 'picked' : ''}`} onClick={onOpen} aria-label={`${game.name}, ${game.players}, ${line.text}`}
         style={{ ['--gc' as string]: game.color || '#323743' }}>
         <span className="art">
           <Cover game={game} className="fill" />

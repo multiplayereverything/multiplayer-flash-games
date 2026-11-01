@@ -93,3 +93,10 @@ export const fileAction = (g: Game): Action | undefined =>
 export const playersShort = (g: Game) => g.players.replace(/ \(.*\)$/, '')
 
 export const platformBadge =(g: Game) => (g.mod ? 'PC' : g.categories.includes('flash') ? 'Flash' : '')
+
+// What the card's last line says and in which color, as the C++ card's stateText.
+export function stateLine(game: Game, lib: Library, mods: Record<string, ModInfo> | null, playing: boolean): { text: string; tone: string } {
+  const st = statusOf(game, lib, mods, playing)
+  const tone = st.kind === 'ready' || st.kind === 'installed' ? 'ok' : st.kind === 'playing' ? 'online' : st.kind === 'soon' || st.kind === 'checking' ? 'muted' : 'warn'
+  return { text: st.text, tone }
+}

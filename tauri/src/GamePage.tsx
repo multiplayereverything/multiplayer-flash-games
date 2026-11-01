@@ -5,9 +5,9 @@ import type { Action, Game, Library, ModInfo, RelayStatus, Room } from './api'
 import { copyText, loadRooms, open } from './api'
 import {
   agoText, fileAction, hostChoices, isCoop, joinByAddress, joinByCode, lastPlayed, looksLikeAddress, mainActions, moreActions, newer,
-  playedText,
+  playedText, stateLine,
 } from './model'
-import { Glyph, PanelButton, SiteBlock, Slots, stateLine } from './ui'
+import { Glyph, PanelButton, SiteBlock, Slots } from './ui'
 
 const SCRAMBLE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&'
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -170,12 +170,11 @@ function HostingCard({ status, session, onStop, colors }: { status: RelayStatus;
           )
         })}
       </div>
-      <div className="slots">
-        {['You', ...guests.map((p) => p.name || p.address)].map((n, i) => (
-          <span key={i} className="slot filled" style={{ ['--p' as string]: colors[i % colors.length] }}><i>P{i + 1}</i>{n}</span>
-        ))}
-        {!guests.length && <span className="slot open"><i>P2</i>Waiting for friends</span>}
-      </div>
+      <p className={guests.length ? 'joined' : 'waiting'}>
+        {guests.length
+          ? guests.map((p, i) => <span key={i}><i style={{ background: colors[(i + 1) % colors.length] }} />{p.name || p.address}</span>)
+          : 'Waiting for friends to join...'}
+      </p>
       <button className="btn danger" onClick={() => onStop(session)}>Stop hosting</button>
     </div>
   )
@@ -230,7 +229,9 @@ export function GamePage({
   const run = (a: Action, code?: string, address?: string) => actions.run(game, a, code, address)
   const hasGuide = game.guide.steps.length > 0 || game.guide.needs.length > 0 || game.guide.tips.length > 0
 
-  useEffect(() => backBtn.current?.focus(), [])
+  useEffect(() => {
+    backBtn.current?.focus()
+  }, [])
 
   // The C++ panel's buttons for a PC mod: find the game, install, update, launch, repair, uninstall.
   let modButtons: ReactNode = null
@@ -272,7 +273,7 @@ export function GamePage({
   ]
   const g = game.guide
   const stats: [string, string][] = [
-    ['Played', u?.seconds ? (u.seconds >= 3600 ? `${Math.floor(u.seconds / 3600)} h ${Math.round((u.seconds % 3600) / 60)} min` : `${Math.max(1, Math.round(u.seconds / 60))} min`) : 'Not yet'],
+    ['Played', !u?.plays ? 'Not yet' : u.seconds >= 3600 ? `${Math.floor(u.seconds / 3600)} h ${Math.round((u.seconds % 3600) / 60)} min` : u.seconds >= 60 ? `${Math.round(u.seconds / 60)} min` : 'Under a minute'],
     ['Last played', lastPlayed(lib, game.id) ? agoText(lastPlayed(lib, game.id)) : 'Never'],
     ['Players', game.players.replace(/ \(.*\)$/, '')],
     game.mod ? ['Version', mod?.installedVersion || game.mod.pinnedVersion || mod?.newest || 'Unknown'] : ['Times played', String(u?.plays ?? 0)],

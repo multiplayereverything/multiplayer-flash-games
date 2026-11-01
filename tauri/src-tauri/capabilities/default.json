@@ -11,6 +11,10 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-start-dragging",
-    "dialog:allow-open"
+    "core:window:allow-is-minimized",
+    "core:window:allow-unminimize",
+    "core:window:allow-set-focus",
+    "dialog:allow-open",
+    "clipboard-manager:allow-write-text"
   ]
 }

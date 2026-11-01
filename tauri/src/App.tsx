@@ -8,7 +8,7 @@ import { GamePage, type PageActions } from './GamePage'
 import { LobbyPage } from './LobbyPage'
 import { SettingsPage } from './SettingsPage'
 import {
-  downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, onDownloadEnded, onHostStatus,
+  downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, restoreWindow, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room,
 } from './api'
@@ -27,6 +27,21 @@ const SORTS: { id: Sort; name: string }[] = [
 ]
 
 interface Notice { text: string; kind: 'ok' | 'error' | 'info' }
+
+const stored = (key: string, fallback: string) => {
+  try {
+    return localStorage.getItem(key) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+const keep = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // A private or blocked store only means the choice isn't remembered.
+  }
+}
 
 // The big banner on Home: a few games one after another, with dots and arrows.
 function Slider({ games, lib, onOpen, onPlay }: { games: Game[]; lib: Library; onOpen: (g: Game) => void; onPlay: (g: Game) => void }) {
@@ -138,8 +153,13 @@ export default function App() {
   const [from, setFrom] = useState<View>('home')
   const [gameId, setGameId] = useState('')
   const [anim, setAnim] = useState('enter')
-  const [cat, setCat] = useState('all')
-  const [sort, setSort] = useState<Sort>('ours')
+  // The list's category and order are this window's own conveniences, kept between runs like the C++ window keeps its own.
+  const [cat, setCat] = useState(() => stored('fl.cat', 'all'))
+  const [sort, setSort] = useState<Sort>(() => stored('fl.sort', 'ours') as Sort)
+  useEffect(() => {
+    keep('fl.cat', cat)
+    keep('fl.sort', sort)
+  }, [cat, sort])
   // The central server, as the C++ status bar shows it: asked once through a game's room list.
   const [server, setServer] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown')
   const [query, setQuery] = useState('')
@@ -368,6 +388,12 @@ export default function App() {
   })
 
   const playingIds = useMemo(() => new Set(playing.values()), [playing])
+  // The window comes back from the taskbar when the last game started from here has closed, as the C++ one does.
+  const wasPlaying = useRef(false)
+  useEffect(() => {
+    if (wasPlaying.current && playing.size === 0 && lib?.user.minimize) void restoreWindow()
+    wasPlaying.current = playing.size > 0
+  }, [playing, lib])
 
   const isReady = useCallback((g: Game) => !!lib && ['ready', 'installed', 'update'].includes(statusOf(g, lib, mods, false).kind), [lib, mods])
   const inCat = useCallback(

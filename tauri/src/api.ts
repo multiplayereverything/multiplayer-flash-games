@@ -141,26 +141,47 @@ export const setGameDir = (game: string, dir: string): Promise<void> => (live ? 
 export const setGameFile = (game: string, action: string, file: string): Promise<void> =>
   live ? invoke('set_game_file', { game, action, file }) : Promise.resolve()
 
+// The test lab answers the next picker itself (tests/lab), since WebDriver can't reach Windows' own dialogs.
+const labPick = (): string | null | undefined => (window as unknown as { __flLabPick?: string | null }).__flLabPick
+
 // Folder and file pickers (the dialog plugin); null when the player cancels.
 export async function pickFolder(title: string, start?: string): Promise<string | null> {
+  if (labPick() !== undefined) return labPick() ?? null
   if (!live) return null
   const { open: openDialog } = await import('@tauri-apps/plugin-dialog')
   const r = await openDialog({ directory: true, title, defaultPath: start || undefined })
   return typeof r === 'string' ? r : null
 }
 export async function pickFile(title: string, extensions: string[]): Promise<string | null> {
+  if (labPick() !== undefined) return labPick() ?? null
   if (!live) return null
   const { open: openDialog } = await import('@tauri-apps/plugin-dialog')
   const r = await openDialog({ title, filters: [{ name: 'Game file', extensions }] })
   return typeof r === 'string' ? r : null
 }
 
-export const copyText = (text: string): Promise<void> => navigator.clipboard.writeText(text)
+// The system clipboard through the clipboard plugin: the WebView's own clipboard API is refused outside a click.
+export async function copyText(text: string): Promise<void> {
+  if (!live) return navigator.clipboard.writeText(text)
+  const { writeText } = await import('@tauri-apps/plugin-clipboard-manager')
+  await writeText(text)
+}
 
 export async function minimizeWindow(): Promise<void> {
   if (!live) return
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   await getCurrentWindow().minimize()
+}
+
+// Back from the taskbar once the last game started from here has closed, as the C++ window does.
+export async function restoreWindow(): Promise<void> {
+  if (!live) return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const w = getCurrentWindow()
+  if (await w.isMinimized()) {
+    await w.unminimize()
+    await w.setFocus()
+  }
 }
 
 // The window draws its own title bar, so its three buttons call these.

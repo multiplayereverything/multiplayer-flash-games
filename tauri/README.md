@@ -39,3 +39,36 @@ npx tauri build --no-bundle   # src-tauri/target/release/app.exe
 
 Ideas are borrowed from Quiver Launcher (rounded cards, art first, one restrained accent). Its source is BSL 1.1,
 so none of its code is used.
+
+## Testing
+
+```bat
+npm test        :: the button logic (src/model.ts), in a second
+npm run lab     :: the test lab: builds the window and clicks through every feature
+```
+
+The lab (`tests/lab/lab.mjs`) drives the real window through `tauri-driver` against a sandbox in `%TEMP%`. The
+sandbox has its own `launcher.json` and data folder, a fake Flash player that records its arguments
+(`launcher_tests.exe --fake-player`) and a fake PC game folder. Local servers stand in for the catalog, mods-info
+and the room list, and pretend friends speak the relay protocol. Real games and the real launcher's settings are
+never touched.
+
+It checks:
+- the library, search, sort and the categories;
+- rooms, Host and Join (by code and by IP), Play solo, Favorite and Settings;
+- minimize and restore, the hosting box (a friend joining, Copy, Stop hosting);
+- Download and Locate;
+- mod install, repair and uninstall: the game folder must end byte-identical;
+- the lobby (host, chat, leave).
+
+A failed check saves a screenshot and the page's errors next to the sandbox.
+
+It needs:
+- `cargo install tauri-driver --locked`;
+- Microsoft Edge WebDriver matching the installed WebView2, either in `MSEDGEDRIVER` or in
+  `%LOCALAPPDATA%\fl-lab\edgedriver-<version>\msedgedriver.exe`;
+- the C++ launcher's Debug build, in `FL_LAUNCHER_EXE` (default: the sibling `flash-launcher-multiplayer` checkout).
+
+`--no-build` reuses the last build, `--only coop,mods` runs some scenarios, and `--keep` keeps the sandbox.
+`FL_LAUNCHER_CONFIG` (another launcher.json for every call to the C++ launcher) is what points the window at the
+sandbox, and it works the same for clicking through one by hand.

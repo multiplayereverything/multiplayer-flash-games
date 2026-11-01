@@ -50,7 +50,10 @@ export function LobbyPage({ game, lib, onClose }: { game: Game; lib: Library; on
   // Leaving the page leaves the room.
   useEffect(() => () => void lobbySend({ op: 'leave' }).catch(() => {}), [])
 
-  useEffect(() => chatEnd.current?.scrollIntoView({ block: 'nearest' }), [room?.chat.length])
+  // Braced: scrollIntoView returns a Promise in current WebView2, and an effect may only return its cleanup.
+  useEffect(() => {
+    chatEnd.current?.scrollIntoView({ block: 'nearest' })
+  }, [room?.chat.length])
 
   const start = (request: LobbyRequest) => {
     setNote('')

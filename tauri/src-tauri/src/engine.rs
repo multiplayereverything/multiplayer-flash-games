@@ -44,6 +44,11 @@ pub fn spawn(args: &[String], with_input: bool) -> Result<std::process::Child, S
 
 fn command(args: &[String]) -> Result<Command, String> {
     let mut c = Command::new(find_exe()?);
+    // `FL_LAUNCHER_CONFIG`: another launcher.json, as the C++ tests use one, so a test run keeps its own data folder,
+    // settings and fake games and never touches the real ones.
+    if let Ok(cfg) = std::env::var("FL_LAUNCHER_CONFIG") {
+        c.arg("--config").arg(cfg);
+    }
     c.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     #[cfg(windows)]
     c.creation_flags(CREATE_NO_WINDOW);
