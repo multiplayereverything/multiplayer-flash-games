@@ -6,7 +6,13 @@
     "resources": { "engine/MultiplayerEverythingLauncher.exe": "MultiplayerEverythingLauncher.exe" },
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
-      "nsis": { "installMode": "currentUser" }
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "template": "installer/installer.nsi",
+        "installerHooks": "installer/ui.nsh"
+      }
     }
   }
 }

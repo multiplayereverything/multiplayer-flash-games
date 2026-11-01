@@ -84,4 +84,10 @@ the installer with `src-tauri/tauri.release.json`. The installer puts `Multiplay
 `MultiplayerEverythingLauncher.exe`, which is where the window looks for the launcher, and installs WebView2 if
 the PC lacks it. It is for the current user only, so no admin prompt. Nothing is published.
 
+The installer has one screen: opening it is the choice to install, so it runs in Tauri's passive mode, shows
+the app's icon, name, what it is doing and a progress bar in the launcher's colors, then opens the app on its
+first-run setup. Run again, it writes the files over the installed ones; settings and games stay. Our copy of
+Tauri's installer script is `src-tauri/installer/installer.nsi` (its changes are marked "Multiplayer
+Everything:"; carry them over when updating tauri-cli) and the screen is `src-tauri/installer/ui.nsh`.
+
 Not done yet: signing, and updates for the window itself. Those need a signing key and a release feed.
