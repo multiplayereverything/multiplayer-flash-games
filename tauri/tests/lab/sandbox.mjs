@@ -94,6 +94,7 @@ export function makeSandbox(work, fakePlayer) {
         guide: { steps: ['Press Host a game.', 'Send the code to a friend.', 'Start the mission.'], tips: ['A tip.'] },
         actions: [
           { id: 'online', label: 'Play online', icon: 'E774', description: 'Host a room for 2 players, or join one with a code', swf: swf('coop.swf'),
+            hint: 'Send the room code the game shows to your friend.',
             args: ['--coop-host-relay', '${SERVER}', '--coop-name', '${PLAYER_NAME}', '--coop-players', '2'],
             joinArgs: ['--coop-join-relay', '${SERVER}', '--coop-code', '${CODE}', '--coop-name', '${PLAYER_NAME}'] },
           { id: 'room3', label: 'Host a room for 3 players', icon: 'E774', more: true, description: 'Starts when 2 friends have joined', swf: swf('coop.swf'),

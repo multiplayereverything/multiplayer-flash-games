@@ -8,6 +8,7 @@ export interface Action {
   id: string
   label: string
   description: string
+  hint: string  // what to do next, shown when the action starts
   icon: string
   more: boolean
   offline: boolean
@@ -91,6 +92,7 @@ export interface Settings {
   showOffline: boolean
   showOriginals: boolean
   autoUpdate: boolean
+  compactCards: boolean  // smaller cards in the grid, as in the C++ window
 }
 
 export interface Library {
@@ -291,7 +293,7 @@ function sampleLibrary(): Library {
   const s = sample as unknown as { branding: { title: string; subtitle: string }; categories: Category[]; games: SampleGame[] }
   const now = Date.now() / 1000
   const action = (a: Partial<Action> & { id: string; label: string }): Action => ({
-    description: '', icon: '', more: false, offline: false, original: false, link: '', mod: null, relayPort: 0,
+    description: '', hint: '', icon: '', more: false, offline: false, original: false, link: '', mod: null, relayPort: 0,
     coopHost: false, coopJoin: false, joinsByCode: false, hostPlayers: 0, viaRelay: false, asksAddress: false, state: 'ready', ...a,
   })
   return {
@@ -319,7 +321,7 @@ function sampleLibrary(): Library {
           : [action({ id: 'play', label: 'Play' })],
     })),
     user: {
-      playerName: 'You', minimize: false, online: true, defaultPlayer: '', gamesDir: '', showOffline: true, showOriginals: false, autoUpdate: true,
+      playerName: 'You', minimize: false, online: true, defaultPlayer: '', gamesDir: '', showOffline: true, showOriginals: false, autoUpdate: true, compactCards: false,
       games: { gunmayhem2: { favorite: false, plays: 3, seconds: 900, lastPlayed: now - 11 * 3600 } },
     },
     text: { 'status.ready': 'Ready', 'status.noSwf': 'Game file missing', 'status.noPlayer': 'No Flash player found', 'status.comingSoon': 'Coming soon' },

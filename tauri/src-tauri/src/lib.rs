@@ -250,7 +250,7 @@ fn set_favorite(shared: State<'_, Shared>, game: String, on: bool) -> Result<(),
 /// One of the Settings window's choices, by its settings.json key.
 #[tauri::command]
 fn set_setting(shared: State<'_, Shared>, key: String, value: serde_json::Value) -> Result<(), String> {
-    const KEYS: [&str; 8] = ["minimize", "online", "defaultPlayer", "gamesDir", "playerName", "showOffline", "showOriginals", "autoUpdate"];
+    const KEYS: [&str; 9] = ["minimize", "online", "defaultPlayer", "gamesDir", "playerName", "showOffline", "showOriginals", "autoUpdate", "compactCards"];
     if !KEYS.contains(&key.as_str()) {
         return Err(format!("{key} isn't a setting"));
     }

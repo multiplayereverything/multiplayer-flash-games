@@ -11,7 +11,7 @@ import { SetupPage } from './SetupPage'
 import { Switcher, type SwitchTarget } from './Switcher'
 import {
   downloadGame, launch, live, loadLibrary, loadMods, loadAllRooms, minimizeWindow, modJob, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
-  onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
+  onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setSetting, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room, type Rooms, type Settings,
 } from './api'
 import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
@@ -290,7 +290,7 @@ export default function App() {
 
   useEffect(() => {
     if (!notice) return
-    const id = window.setTimeout(() => setNotice(null), notice.kind === 'error' ? 9000 : 4000)
+    const id = window.setTimeout(() => setNotice(null), notice.kind === 'error' || notice.text.length > 70 ? 9000 : 4000)
     return () => window.clearTimeout(id)
   }, [notice])
 
@@ -308,7 +308,7 @@ export default function App() {
       launch(game.id, action.id, code, address, coopSave)
         .then((session) => {
           setPlaying((p) => new Map(p).set(session, game.id))
-          say(code ? `Joining room ${code} in ${game.name}...` : `Starting ${game.name}...`, 'ok')
+          say(action.hint || (code ? `Joining room ${code} in ${game.name}...` : `Starting ${game.name}...`), action.hint ? 'info' : 'ok')
           if (lib?.user.minimize) void minimizeWindow()
         })
         .catch((e) => say(String(e), 'error'))
@@ -574,10 +574,17 @@ export default function App() {
         </div>
         <div className="dctl">
           <Seg label="Order" value={sort} options={SORTS} onChange={setSort} />
+          <Seg label="Card size" value={lib.user.compactCards ? 'compact' : 'large'}
+            options={[{ id: 'large', name: 'Large' }, { id: 'compact', name: 'Compact' }]}
+            onChange={(v) => {
+              const compact = v === 'compact'
+              changed({ compactCards: compact })
+              setSetting('compactCards', compact).catch((e) => say(String(e), 'error'))
+            }} />
         </div>
         <div className="count-line">{shown.length === 1 ? '1 game' : `${shown.length} games`}</div>
         {shown.length ? (
-          <div className="grid">{shown.map(tileOf)}</div>
+          <div className={`grid ${lib.user.compactCards ? 'compact' : ''}`}>{shown.map(tileOf)}</div>
         ) : (
           <div className="empty">
             <Gamepad2 size={40} />

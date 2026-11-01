@@ -8,7 +8,7 @@ import {
 } from '../src/model.ts'
 
 const action = (a: Partial<Action> & { id: string }): Action => ({
-  label: a.id, description: '', icon: '', more: false, offline: false, original: false, link: '', mod: null, relayPort: 0,
+  label: a.id, description: '', hint: '', icon: '', more: false, offline: false, original: false, link: '', mod: null, relayPort: 0,
   coopHost: false, coopJoin: false, joinsByCode: false, hostPlayers: 0, viaRelay: false, asksAddress: false, state: 'ready', ...a,
 })
 const game = (g: Partial<Game> & { actions: Action[] }): Game => ({

@@ -450,3 +450,11 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
 .boot-shape main { padding: 40px 32px; display: flex; flex-direction: column; gap: 24px; }
 .boot-shape .grid .ghost { aspect-ratio: 16 / 13; border-radius: 12px; background: var(--card); }
 .boot-shape .note { color: var(--muted); font-size: 12px; }
+.isl.note b { white-space: normal; }
+
+/* Compact cards (the C++ window's compactCards): more per row, the name and state only. */
+.grid.compact { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
+.grid.compact .card-c .info { padding: 8px 12px 10px; }
+.grid.compact .card-c .name { font-size: 16px; line-height: 22px; }
+.grid.compact .card-c .ppl { display: none; }
+.grid.compact .card-c .st { height: 18px; }
