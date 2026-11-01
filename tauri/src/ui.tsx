@@ -41,7 +41,7 @@ export function GradeChip({ grade, size = 22 }: { grade: string; size?: number }
 
 // A card as the C++ library draws one: the art across the top with its badges, then the name in the condensed
 // display font, the player pips and count, and the state. The selected card has a white outline.
-export function Tile({ game, lib, mods, playing, favorite, selected, onOpen }: TileProps & { selected?: boolean }) {
+export function Tile({ game, lib, mods, playing, favorite, selected, rooms = 0, onOpen }: TileProps & { selected?: boolean; rooms?: number }) {
   const line = stateLine(game, lib, mods, playing)
   const t = (k: string, f: string) => lib.text[k] ?? f
   const notOnServer = game.site?.status === 'not-on-server'
@@ -65,7 +65,8 @@ export function Tile({ game, lib, mods, playing, favorite, selected, onOpen }: T
           <span className="ppl"><Pips n={game.maxPlayers} colors={lib.branding.playerColors} /><span>{game.players}</span></span>
           <span className="st">
             <span className={`tone-${line.tone}`}>{line.text}</span>
-            {notOnServer && <span className="tone-muted right">{t('status.notOnServer', 'Not on the server yet')}</span>}
+            {notOnServer ? <span className="tone-muted right">{t('status.notOnServer', 'Not on the server yet')}</span>
+              : rooms > 0 && <span className="tone-online right">{rooms === 1 ? t('rooms.one', '1 room open') : t('rooms.count', '${N} rooms open').replace('${N}', String(rooms))}</span>}
           </span>
         </span>
       </button>

@@ -157,6 +157,8 @@ export const setGamePlayer = (game: string, player: string): Promise<void> =>
 export interface PlayerUpdate { id: string; checked: boolean; updated: boolean; version: string; error: string }
 export const updatePlayers = (): Promise<{ players: PlayerUpdate[] }> =>
   live ? invoke('update_players') : Promise.resolve({ players: [] })
+export interface AllRooms { server: string; games: Record<string, Rooms> }
+export const loadAllRooms = (): Promise<AllRooms> => (live ? invoke('all_rooms') : Promise.resolve({ server: '', games: {} }))
 export const ping = (server: string): Promise<number> => (live ? invoke('ping', { server }) : Promise.reject(new Error('sample')))
 
 export const modJob = (op: 'install' | 'repair' | 'uninstall', game: string): Promise<void> =>

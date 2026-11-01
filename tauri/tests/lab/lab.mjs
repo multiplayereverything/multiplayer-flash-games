@@ -141,6 +141,11 @@ const scenarios = {
   },
 
   async rooms() {
+    await wd.click(nav('All games'))
+    const counted = await waitFor(async () => (await wd.exec("return [...document.querySelectorAll('.card-c')].find(c => c.querySelector('.name')?.textContent === 'Co-op Test')?.querySelector('.st')?.textContent ?? ''")).includes('2 rooms open'), 15000)
+    await check('a card shows how many rooms are open', !!counted)
+    await wd.click(nav('Home'))
+    await check('Home lists the games open right now', !!(await waitFor(async () => (await wd.exec("return [...document.querySelectorAll('.shelf-h h2')].map(h => h.textContent).join('|')")).includes('Open right now'), 8000)))
     await wd.click(nav('Rooms'))
     await check('Open rooms lists the server\'s rooms', (await waitFor(async () => (await wd.count("//div[contains(@class,'row-card')]")) >= 2, 10000)) === true)
     await check('a full room offers no Join', (await wd.count(`//div[contains(@class,'row-card')]${button('Full')}`)) >= 1)

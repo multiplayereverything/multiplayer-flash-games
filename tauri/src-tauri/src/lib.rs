@@ -301,6 +301,12 @@ fn set_game_player(shared: State<'_, Shared>, game: String, player: String) -> R
     })
 }
 
+/// Every online game's open rooms in one call (`--rooms all --json`), for the cards' room counts.
+#[tauri::command]
+async fn all_rooms() -> Result<serde_json::Value, String> {
+    blocking(|| engine::run_json(&["--rooms".into(), "all".into(), "--json".into()])).await
+}
+
 /// Brings the players the launcher installed up to their newest release (`--update-players --json`).
 #[tauri::command]
 async fn update_players() -> Result<serde_json::Value, String> {
@@ -400,7 +406,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             library, mods, rooms, launch, stop_session, mod_job, download_game, set_favorite, set_setting, set_game_dir,
             set_game_file, lobby_start, lobby_send, open, install_player, set_game_setting, set_game_player,
-            update_players, ping
+            update_players, ping, all_rooms
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

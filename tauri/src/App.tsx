@@ -9,9 +9,9 @@ import { LobbyPage } from './LobbyPage'
 import { SettingsPage } from './SettingsPage'
 import { SetupPage } from './SetupPage'
 import {
-  downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
+  downloadGame, launch, live, loadLibrary, loadMods, loadAllRooms, minimizeWindow, modJob, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
-  type Game, type Library, type ModInfo, type RelayStatus, type Room, type Settings,
+  type Game, type Library, type ModInfo, type RelayStatus, type Room, type Rooms, type Settings,
 } from './api'
 import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
 import { Glyph, Pips, Seg, Shelf, Tile } from './ui'
@@ -95,23 +95,13 @@ function Slider({ games, lib, onOpen, onPlay }: { games: Game[]; lib: Library; o
 }
 
 // Every online game's open rooms, with Join.
-function RoomsPage({ lib, onJoin, onOpen }: { lib: Library; onJoin: (g: Game, code: string) => void; onOpen: (g: Game) => void }) {
-  const online = useMemo(() => lib.games.filter((g) => g.onlineId && !g.comingSoon), [lib])
-  const [rooms, setRooms] = useState<{ game: Game; room: Room }[] | null>(null)
-  const [error, setError] = useState('')
-  useEffect(() => {
-    let alive = true
-    const get = async () => {
-      const all = await Promise.all(online.map((g) => loadRooms(g.id).then((r) => r.rooms.map((room) => ({ game: g, room }))).catch((e) => (setError(String(e)), []))))
-      if (alive) setRooms(all.flat())
-    }
-    get()
-    const id = window.setInterval(get, 20000)
-    return () => {
-      alive = false
-      window.clearInterval(id)
-    }
-  }, [online])
+function RoomsPage({ lib, all, onJoin, onOpen }: { lib: Library; all: Record<string, Rooms> | null; onJoin: (g: Game, code: string) => void; onOpen: (g: Game) => void }) {
+  // Games sharing one online id list the same rooms; each room shows once, under the first of them.
+  const seen = new Set<string>()
+  const rooms: { game: Game; room: Room }[] | null = all
+    ? lib.games.flatMap((g) => (all[g.id]?.rooms ?? []).filter((r) => !seen.has(g.onlineId + r.code) && seen.add(g.onlineId + r.code)).map((room) => ({ game: g, room })))
+    : null
+  const error = all ? Object.values(all).find((x) => x.error)?.error ?? '' : ''
   return (
     <div className="page">
       <div className="head">
@@ -164,6 +154,7 @@ export default function App() {
   // The central server, as the C++ status bar shows it: asked once through a game's room list.
   const [server, setServer] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown')
   const [pingMs, setPingMs] = useState<number | null>(null)
+  const [allRooms, setAllRooms] = useState<Record<string, Rooms> | null>(null)
   // A game whose file is missing, opened from a Play outside its page: its page offers the download at once.
   const [askDownload, setAskDownload] = useState('')
   // The first-run setup: opens when the launcher starts without a player name (the C++ window asks for one then
@@ -202,28 +193,30 @@ export default function App() {
     refreshMods()
   }, [refresh, refreshMods])
 
-  const probe = lib?.user.online ? lib.games.find((g) => g.onlineId && !g.comingSoon)?.id : undefined
+  const anyOnline = !!lib?.user.online && !!lib?.games.some((g) => g.onlineId && !g.comingSoon)
   const roomsServer = lib?.roomsServer ?? ''
   useEffect(() => {
-    if (!probe) return
+    if (!anyOnline) return
     let alive = true
     const ask = () => {
       setServer((s) => (s === 'unknown' ? 'checking' : s))
-      loadRooms(probe)
+      loadAllRooms()
         .then((r) => {
           if (!alive) return
-          setServer(r.onServer || !r.error ? 'online' : 'offline')
+          setAllRooms(r.games)
+          const answers = Object.values(r.games)
+          setServer(answers.some((x) => x.onServer && !x.error) ? 'online' : 'offline')
           if (roomsServer) ping(roomsServer).then((ms) => alive && setPingMs(ms)).catch(() => alive && setPingMs(null))
         })
         .catch(() => alive && setServer('offline'))
     }
     ask()
-    const id = window.setInterval(ask, 60000)
+    const id = window.setInterval(ask, 30000)
     return () => {
       alive = false
       window.clearInterval(id)
     }
-  }, [probe, roomsServer])
+  }, [anyOnline, roomsServer])
 
   // Ruffle Together kept on its newest release, once per start, as the C++ launcher does: everyone in a co-op
   // session has to run the same build.
@@ -514,13 +507,20 @@ export default function App() {
   }
   const tileOf = (g: Game) => (
     <Tile key={g.id} game={g} lib={lib} mods={mods} playing={playingIds.has(g.id)} favorite={favs.has(g.id)}
-      selected={g.id === gameId} onOpen={() => go('game', g.id)} />
+      selected={g.id === gameId} rooms={allRooms?.[g.id]?.rooms.length ?? 0} onOpen={() => go('game', g.id)} />
   )
 
   const playable = lib.games.filter((g) => !g.comingSoon)
   const recent = playable.filter((g) => lastPlayed(lib, g.id) > 0).sort((a, b) => lastPlayed(lib, b.id) - lastPlayed(lib, a.id))
   const featured = [...new Set([...recent.slice(0, 2), ...playable.filter((g) => g.image), ...playable])].slice(0, 5)
   const together = playable.filter((g) => g.onlineId || isCoop(g))
+  // Steam's home shows what friends play; here, the games with rooms open on the server right now.
+  const players = (g: Game) => (allRooms?.[g.id]?.rooms ?? []).reduce((n, r) => n + r.players, 0)
+  const liveNow = playable.filter((g) => (allRooms?.[g.id]?.rooms.length ?? 0) > 0).sort((a, b) => players(b) - players(a))
+  // And what changed lately, from the website's dates.
+  const monthAgo = Date.now() - 45 * 86400000
+  const updatedLately = playable.filter((g) => g.site?.updated && Date.parse(g.site.updated) > monthAgo)
+    .sort((a, b) => Date.parse(b.site!.updated) - Date.parse(a.site!.updated))
   const pcMods = playable.filter((g) => g.mod)
   const soon = lib.games.filter((g) => g.comingSoon)
   const pageGame = lib.games.find((g) => g.id === gameId)
@@ -543,7 +543,7 @@ export default function App() {
         askDownload={askDownload === pageGame.id} />
     )
   } else if (view === 'rooms') {
-    page = <RoomsPage lib={lib} onOpen={(g) => go('game', g.id)} onJoin={(g, code) => { const a = joinByCode(g); if (a) actions.run(g, a, code) }} />
+    page = <RoomsPage lib={lib} all={allRooms} onOpen={(g) => go('game', g.id)} onJoin={(g, code) => { const a = joinByCode(g); if (a) actions.run(g, a, code) }} />
   } else if (view === 'library') {
     page = (
       <div className="page">
@@ -575,7 +575,13 @@ export default function App() {
     page = (
       <div className="page">
         <Slider games={featured} lib={lib} onOpen={(g) => go('game', g.id)} onPlay={playLead} />
+        {liveNow.length > 0 && (
+          <Shelf title="Open right now" note="People are hosting these on the central server. Open one and press Quick play." count={liveNow.length} onSeeAll={() => go('rooms')}>
+            {liveNow.map(tileOf)}
+          </Shelf>
+        )}
         {recent.length > 0 && <Shelf title="Jump back in" count={recent.length}>{recent.map(tileOf)}</Shelf>}
+        {updatedLately.length > 0 && <Shelf title="Recently updated" note="New versions in the last few weeks." count={updatedLately.length}>{updatedLately.map(tileOf)}</Shelf>}
         {together.length > 0 && (
           <Shelf title="Play together online" note="Host a room and friends join with its code. No port forwarding." count={together.length} onSeeAll={() => go('library')}>
             {together.map(tileOf)}
