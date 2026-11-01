@@ -1,44 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import raw from './launcher.data.json'
 import { Cover } from './Cover'
-import { COMING_SOON, platformBadge, statusOf } from './mock'
+import { GamePage } from './GamePage'
+import { COMING_SOON, PLAYED_HOURS_AGO, PLAYER_COLORS, agoText, leadAction, platformBadge, statusOf } from './mock'
+import { usePad } from './usePad'
 import type { Game, LauncherData } from './types'
 import './App.css'
 
 const data = raw as unknown as LauncherData
-const PLAYER_COLORS = ['#E5484D', '#3E7BFA', '#2EBD6B', '#F5B83D']
-const SCRAMBLE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&'
-
-const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-// The title decodes on a new selection: one of the few moves tied to a real event.
-function useDecode(text: string): string {
-  const [shown, setShown] = useState(text)
-  useEffect(() => {
-    if (reduceMotion()) {
-      setShown(text)
-      return
-    }
-    let frame = 0
-    const total = 14
-    const id = window.setInterval(() => {
-      frame++
-      const settled = Math.floor((frame / total) * text.length)
-      setShown(
-        text
-          .split('')
-          .map((ch, i) => (i < settled || ch === ' ' ? ch : SCRAMBLE[Math.floor(Math.random() * SCRAMBLE.length)]))
-          .join(''),
-      )
-      if (frame >= total) {
-        window.clearInterval(id)
-        setShown(text)
-      }
-    }, 28)
-    return () => window.clearInterval(id)
-  }, [text])
-  return shown
-}
 
 function Icon({ code }: { code: string }) {
   return <span className="icon" aria-hidden="true">{String.fromCodePoint(parseInt(code, 16))}</span>
@@ -47,121 +16,142 @@ function Icon({ code }: { code: string }) {
 function Pips({ n }: { n: number }) {
   return (
     <span className="pips" aria-hidden="true">
-      {PLAYER_COLORS.slice(0, Math.min(4, Math.max(1, n))).map((c) => (
-        <i key={c} style={{ background: c }} />
+      {PLAYER_COLORS.slice(0, Math.min(6, Math.max(1, n))).map((c, i) => (
+        <i key={i} style={{ background: c }} />
       ))}
     </span>
   )
 }
 
-// Views in the sidebar that are not a category of launcher.json.
-const VIEWS: Record<string, string> = { favorites: 'Favorites', ready: 'Ready to play', rooms: 'Rooms', soon: 'Coming soon' }
-const VIEW_ICONS: Record<string, string> = { favorites: 'E734', ready: 'E768', rooms: 'E902', soon: 'E916' }
-
-function Card({
-  game, selected, favorite, onSelect,
-}: { game: Game; selected: boolean; favorite: boolean; onSelect: () => void }) {
-  const st = statusOf(game)
-  const badge = platformBadge(game)
+// A chip that opens a list (Quiver's "All" menu): the choice at the left, a chevron at the right.
+function ChipMenu<T extends string>({
+  label, value, options, onChange,
+}: { label: string; value: T; options: { id: T; name: string }[]; onChange: (v: T) => void }) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  const current = options.find((o) => o.id === value)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !root.current?.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', close)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', close)
+    }
+  }, [open])
   return (
-    <button className={`card ${selected ? 'selected' : ''}`} onClick={onSelect} aria-pressed={selected}>
-      <div className="card-art">
-        <Cover game={game} />
-        {badge && <span className="badge">{badge}</span>}
-        {favorite && <span className="fav icon" aria-label="Favorite">{'\uE735'}</span>}
-      </div>
-      <div className="card-body">
-        <div className="card-title">{game.name}</div>
-        <div className="card-meta">
-          <Pips n={game.maxPlayers ?? 2} />
-          <span>{game.players}</span>
+    <div className="chip-menu" ref={root}>
+      <button className="chip-btn" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${current?.name}`} onClick={() => setOpen(!open)}>
+        <span>{current?.name}</span>
+        <Icon code="E70D" />
+      </button>
+      {open && (
+        <div className="menu" role="menu">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              role="menuitemradio"
+              aria-checked={o.id === value}
+              className="menu-item"
+              onClick={() => {
+                onChange(o.id)
+                setOpen(false)
+              }}
+            >
+              <span className="check">{o.id === value ? '✓' : ''}</span>
+              {o.name}
+            </button>
+          ))}
         </div>
-        {st.text && <div className={`card-status ${st.kind}`}>{st.text}</div>}
-      </div>
-    </button>
+      )}
+    </div>
   )
 }
 
-// Quiver's wide banner, for our case: the first game in the view that has real art.
-function Hero({ game, onSelect }: { game: Game; onSelect: () => void }) {
+// A poster: the picture is the card, the names sit over its foot. On hover or focus a Play button appears;
+// the card itself opens the game's page.
+function Card({ game, favorite, onOpen }: { game: Game; favorite: boolean; onOpen: () => void }) {
   const st = statusOf(game)
+  const badge = platformBadge(game)
+  const lead = leadAction(game)
+  // What wants doing shows at the foot's right; a ready game shows nothing there.
+  const note = st.kind === 'ready' || st.kind === 'installed' ? '' : st.text
   return (
-    <section className="hero" aria-label="Featured">
-      <img src={game.image} alt="" style={{ objectPosition: `50% ${(game.imageFocus ?? 0.3) * 100}%` }} draggable={false} />
+    <div className="poster">
+      <button className="poster-open" onClick={onOpen} aria-label={`${game.name}, ${game.players ?? ''}`}>
+        <Cover game={game} className="fill" />
+        <span className="poster-shade" />
+        {badge && <span className="badge">{badge}</span>}
+        {favorite && <span className="fav icon" aria-label="Favorite">{''}</span>}
+        <span className="poster-foot">
+          <span className="poster-title">{game.name}</span>
+          <span className="poster-meta">
+            <Pips n={game.maxPlayers ?? 2} />
+            <span className="poster-players">{game.players?.replace(/ \(.*\)$/, '')}</span>
+            {note && <span className={`note ${st.kind}`}>{note}</span>}
+          </span>
+        </span>
+      </button>
+      {lead && !game.mod && (
+        <button className="poster-play" aria-label={`${lead.label}: ${game.name}`}>
+          <Icon code="E768" /> {lead.label}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// The most recently played game, wide, with Play and Open.
+function Hero({ game, onOpen }: { game: Game; onOpen: () => void }) {
+  const lead = leadAction(game)
+  return (
+    <section className="hero" aria-label="Continue playing">
+      <Cover game={game} className="fill" />
       <div className="hero-shade" />
       <div className="hero-body">
-        <span className="chip">Featured</span>
+        <div className="hero-top">
+          <span className="chip">Continue playing</span>
+          <span className="hero-when">Played {agoText(PLAYED_HOURS_AGO[game.id])}</span>
+        </div>
         <h3>{game.name}</h3>
-        <p>{game.description}</p>
         <div className="hero-row">
-          <button className="btn primary hero-btn" onClick={onSelect}>
-            <span className="btn-main">{game.mod ? 'See details' : 'Play online'}</span>
-          </button>
-          <span className="hero-meta"><Pips n={game.maxPlayers ?? 2} /> {game.players}{st.text ? `  -  ${st.text}` : ''}</span>
+          {lead && !game.mod && <button className="btn primary hero-btn"><Icon code="E768" /> {lead.label}</button>}
+          <button className="btn hero-btn" onClick={onOpen}>Open</button>
         </div>
       </div>
     </section>
   )
 }
 
-function Details({ game, favorite, onFavorite }: { game: Game; favorite: boolean; onFavorite: () => void }) {
-  const title = useDecode(game.name)
-  const slots = Math.min(4, game.maxPlayers ?? 2)
-  const st = statusOf(game)
-  const soon = st.kind === 'soon'
-  const hasPlay = !soon && (game.mod || game.online)
-  let primary = 'Play online'
-  let sub = 'Opens Ruffle Together'
-  if (game.mod) {
-    primary = st.kind === 'installed' ? `Launch ${game.mod.gameName}` : `Install ${game.mod.gameName}`
-    sub = st.kind === 'installed' ? 'Starts the game with the mod' : `Version ${game.mod.version ?? 'latest'}, into your ${game.mod.gameName} folder`
-  }
-  const cats = data.categories.filter((c) => game.categories?.includes(c.id) && c.group === 'platform')
-  return (
-    <aside className="details" key={game.id}>
-      <Cover game={game} className="details-cover" />
-      <h2 className="details-title" aria-label={game.name}>{title}</h2>
-      <div className="details-sub">{cats.map((c) => c.name).join(', ')}</div>
-      <div className="slots" aria-label={`${slots} player slots`}>
-        {Array.from({ length: slots }, (_, i) => (
-          <div className="slot" key={i} style={{ ['--p' as string]: PLAYER_COLORS[i] }}>P{i + 1}</div>
-        ))}
-      </div>
-      {st.text && <div className={`pill ${st.kind}`}><i />{st.text}</div>}
-      <p className="details-text">{game.description}</p>
-      <div className="played">Not played yet</div>
-      <div className="actions">
-        {soon && <div className="soon-note">Not playable yet: this mod is still being built.</div>}
-        {hasPlay && (
-          <button className="btn primary">
-            <span className="btn-main">{primary}</span>
-            <span className="btn-sub">{sub}</span>
-          </button>
-        )}
-        {game.actions
-          .filter((a) => a.link)
-          .map((a) => (
-            <a className="btn link" key={a.id} href={a.link} target="_blank" rel="noreferrer">
-              <span className="btn-main">{a.label}</span>
-              {a.description && <span className="btn-sub">{a.description}</span>}
-            </a>
-          ))}
-        <div className="row">
-          <button className="btn quiet" onClick={onFavorite} aria-pressed={favorite}>
-            <span className="icon">{favorite ? '\uE735' : '\uE734'}</span> Favorite
-          </button>
-          <button className="btn quiet">Guide</button>
-          <button className="btn quiet">Folder</button>
-        </div>
-      </div>
-    </aside>
-  )
+const VIEWS: { id: string; name: string }[] = [
+  { id: 'favorites', name: 'Favorites' },
+  { id: 'ready', name: 'Ready to play' },
+  { id: 'soon', name: 'Coming soon' },
+]
+type Sort = 'ours' | 'recent' | 'name' | 'players'
+const SORTS: { id: Sort; name: string }[] = [
+  { id: 'ours', name: 'Our order' },
+  { id: 'recent', name: 'Recently played' },
+  { id: 'name', name: 'Name' },
+  { id: 'players', name: 'Most players' },
+]
+
+function Hint({ k, label }: { k: string; label: string }) {
+  return <span className="hint"><kbd>{k}</kbd>{label}</span>
 }
 
 export default function App() {
-  const [view, setView] = useState<string>('pc')
+  const [top, setTop] = useState<'library' | 'rooms'>('library')
+  const [view, setView] = useState<string>('flash')
+  const [sort, setSort] = useState<Sort>('ours')
+  const [compact, setCompact] = useState(false)
   const [query, setQuery] = useState('')
-  const [selId, setSelId] = useState<string>(data.games[0].id)
+  const [page, setPage] = useState<{ id: string } | null>(null)
+  // Which way the content moves on the last page change: a game's page in from the right, the library back from the left.
+  const [dir, setDir] = useState<'in' | 'out'>('in')
   const [favs, setFavs] = useState<Set<string>>(() => {
     try {
       return new Set(JSON.parse(localStorage.getItem('favs') ?? '[]'))
@@ -171,16 +161,38 @@ export default function App() {
   })
   const search = useRef<HTMLInputElement>(null)
 
+  const open = (id: string) => {
+    setDir('in')
+    setPage({ id })
+  }
+  const back = () => {
+    if (!page) return
+    setDir('out')
+    setPage(null)
+  }
+  const focusSearch = () => {
+    if (page) back()
+    setTop('library')
+    requestAnimationFrame(() => search.current?.focus())
+  }
+
+  const pad = usePad({
+    back,
+    search: focusSearch,
+    prevTab: () => setTop('library'),
+    nextTab: () => setTop('rooms'),
+  })
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
-        search.current?.focus()
-      }
+        focusSearch()
+      } else if (e.key === 'Escape' && page && !(e.target instanceof HTMLInputElement)) back()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  })
 
   const toggleFav = (id: string) =>
     setFavs((prev) => {
@@ -196,77 +208,118 @@ export default function App() {
     if (v === 'favorites') return favs.has(g.id)
     if (v === 'ready') return statusOf(g).kind === 'ready' || statusOf(g).kind === 'installed'
     if (v === 'soon') return COMING_SOON.has(g.id)
-    if (v === 'rooms') return false
-    return !!g.categories?.includes(v)
+    return !!g.categories?.includes(v) && !COMING_SOON.has(g.id)
   }
 
-  const counts = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const id of [...data.categories.map((c) => c.id), ...Object.keys(VIEWS)])
-      m[id] = data.games.filter((g) => inView(g, id)).length
-    return m
+  const viewOptions = useMemo(
+    () =>
+      [...data.categories.filter((c) => c.group === 'platform'), ...VIEWS, ...data.categories.filter((c) => c.group !== 'platform')].map((c) => ({
+        id: c.id,
+        name: `${c.name} (${data.games.filter((g) => inView(g, c.id)).length})`,
+      })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [favs])
+    [favs],
+  )
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return data.games.filter((g) => inView(g, view) && (!q || g.name.toLowerCase().includes(q)))
+    const list = data.games.filter((g) => inView(g, view) && (!q || g.name.toLowerCase().includes(q)))
+    const order = new Map(data.games.map((g, i) => [g.id, i]))
+    const key: Record<Sort, (g: Game) => number | string> = {
+      ours: (g) => order.get(g.id) ?? 0,
+      recent: (g) => PLAYED_HOURS_AGO[g.id] ?? Infinity,
+      name: (g) => g.name.toLowerCase(),
+      players: (g) => -(g.maxPlayers ?? 0),
+    }
+    return [...list].sort((a, b) => {
+      const x = key[sort](a)
+      const y = key[sort](b)
+      return x < y ? -1 : x > y ? 1 : (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, query, favs])
+  }, [view, query, favs, sort])
 
-  const selected = data.games.find((g) => g.id === selId) ?? data.games[0]
-  const hero = !query && view !== 'rooms' ? shown.find((g) => g.image) : undefined
-  const platform = data.categories.filter((c) => c.group === 'platform')
-  const kind = data.categories.filter((c) => c.group === 'kind')
+  const recent = Object.entries(PLAYED_HOURS_AGO).sort((a, b) => a[1] - b[1])[0]?.[0]
+  const hero = !query && top === 'library' ? data.games.find((g) => g.id === recent) : undefined
+  const pageGame = page ? data.games.find((g) => g.id === page.id) : undefined
 
-  const navItem = (id: string, name: string, icon: string) => (
-    <button key={id} className={`nav ${view === id ? 'active' : ''}`} onClick={() => setView(id)}>
-      <Icon code={icon} />
-      <span className="nav-name">{name}</span>
-      <span className="nav-count">{counts[id]}</span>
-    </button>
-  )
+  const hints = pad
+    ? pageGame
+      ? [['A', 'Press'], ['D-pad', 'Move'], ['B', 'Back']]
+      : [['A', 'Open'], ['D-pad', 'Move'], ['Y', 'Search'], ['LB / RB', 'Library, Rooms']]
+    : pageGame
+      ? [['Esc', 'Back'], ['Tab', 'Next control']]
+      : [['Enter', 'Open'], ['Ctrl+F', 'Search'], ['Tab', 'Next control']]
 
   return (
     <div className="app">
-      <nav className="sidebar">
-        <div className="brand">
-          <div className="brand-title">{data.branding.title}</div>
-          <div className="brand-sub">{data.branding.subtitle}</div>
-        </div>
-        {platform.map((c) => navItem(c.id, c.name, c.icon))}
-        {(['favorites', 'ready', 'rooms', 'soon'] as const).map((id) => navItem(id, VIEWS[id], VIEW_ICONS[id]))}
-        <div className="nav-gap" />
-        {kind.map((c) => navItem(c.id, c.name, c.icon))}
-        <div className="nav-spacer" />
-        <button className="nav"><Icon code="E713" /><span className="nav-name">Settings</span></button>
-      </nav>
-      <main className="main">
-        <div className="search">
-          <Icon code="E721" />
-          <input ref={search} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games  (Ctrl+F)" />
-        </div>
-        <div className="scroll">
-          {hero && <Hero game={hero} onSelect={() => setSelId(hero.id)} />}
-          {view === 'rooms' ? (
+      <header className="topbar">
+        <div className="brand">{data.branding.title}</div>
+        <nav className="toptabs" role="tablist">
+          {(['library', 'rooms'] as const).map((t) => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={top === t && !pageGame}
+              className={`toptab ${top === t ? 'on' : ''}`}
+              onClick={() => {
+                back()
+                setTop(t)
+              }}
+            >
+              {t === 'library' ? 'Library' : 'Rooms'}
+            </button>
+          ))}
+        </nav>
+        <div className="grow" />
+        <button className="ghost"><Icon code="E713" /> Settings</button>
+      </header>
+
+      <main className="body">
+        {pageGame ? (
+          <GamePage
+            key={pageGame.id}
+            game={pageGame}
+            categories={data.categories}
+            favorite={favs.has(pageGame.id)}
+            onFavorite={() => toggleFav(pageGame.id)}
+            onBack={back}
+            dir={dir}
+          />
+        ) : top === 'rooms' ? (
+          <div className={`library enter-${dir === 'in' ? 'right' : 'left'}`} key="rooms">
             <div className="empty">No open rooms right now. Rooms hosted through the launcher appear here.</div>
-          ) : (
-            <div className="grid">
-              {shown.filter((g) => g !== hero).map((g) => (
-                <Card key={g.id} game={g} selected={g.id === selected.id} favorite={favs.has(g.id)} onSelect={() => setSelId(g.id)} />
+          </div>
+        ) : (
+          <div className={`library enter-${dir === 'in' ? 'right' : 'left'}`} key="library">
+            {hero && <Hero game={hero} onOpen={() => open(hero.id)} />}
+            <div className="toolbar">
+              <ChipMenu label="Show" value={view} options={viewOptions} onChange={setView} />
+              <label className="search">
+                <Icon code="E721" />
+                <input ref={search} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games  (Ctrl+F)" />
+              </label>
+              <ChipMenu label="Order" value={sort} options={SORTS} onChange={setSort} />
+              <button className="chip-btn" onClick={() => setCompact(!compact)} aria-pressed={compact}>
+                <Icon code="E8A9" /> {compact ? 'Larger' : 'Compact'}
+              </button>
+            </div>
+            <div className={`grid ${compact ? 'compact' : ''}`}>
+              {shown.map((g) => (
+                <Card key={g.id} game={g} favorite={favs.has(g.id)} onOpen={() => open(g.id)} />
               ))}
               {shown.length === 0 && <div className="empty">{view === 'favorites' ? 'No favorites yet. Press Favorite on a game.' : 'No games match.'}</div>}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
-      <Details game={selected} favorite={favs.has(selected.id)} onFavorite={() => toggleFav(selected.id)} />
+
       <footer className="status">
-        <span className="dot" /> Server online (140 ms)
-        <span className="sep" /> Ruffle Together <span className="ok">{'\u2713'}</span>
-        <span className="sep" /> Flashpoint: E:\Flashpoint
+        {hints.map(([k, label]) => <Hint key={k} k={k} label={label} />)}
         <span className="grow" />
-        <span className="proto">Prototype data</span>
+        <span className="dot" /> Server online (140 ms)
+        <span className="sep" /> Ruffle Together <span className="ok">{'✓'}</span>
+        <span className="sep" /> Prototype data
       </footer>
     </div>
   )

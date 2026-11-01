@@ -1,16 +1,17 @@
 /* Our palette (src/core/config.cpp darkPalette), as tokens. Colors come only from here. */
 :root {
-  --bg: #15171c;
-  --surface: #1e2128;
-  --surface-hover: #272b34;
-  --sidebar: #0e1014;
-  --text: #e8eaed;
-  --text-muted: #9aa1ac;
-  --border: #323743;
+  --bg: #0b1119;
+  --surface: #141b26;
+  --surface-hover: #1f2835;
+  --sidebar: #070c13;
+  --text: #e6ebf2;
+  --text-muted: #93a0b3;
+  --bar-muted: #8e9bae;
+  --border: #253041;
   --primary: #c8313a;
   --primary-hover: #b42a33;
   --on-primary: #fff;
-  --focus: #8fb0ff;
+  --focus: #38bdf8;
   --success: #3ccb7f;
   --warning: #f2b544;
 
