@@ -1,5 +1,5 @@
 import { GLYPH_H, GLYPH_W, glyph, initials } from './pixelFont'
-import type { Game } from './types'
+import type { Game } from './api'
 
 // Cover art: the game's picture when it has one, otherwise the initials in the pixel font on its colors.
 export function Cover({ game, className }: { game: Game; className?: string }) {

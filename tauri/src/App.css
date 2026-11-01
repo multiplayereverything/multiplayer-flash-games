@@ -223,6 +223,58 @@
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .btn.quiet { min-height: 34px; font-size: 16.7px; flex-direction: row; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
 
+.btn:disabled { opacity: 1; cursor: default; color: var(--text-muted); }
+.btn.primary:disabled { background: var(--surface-hover); border-color: var(--border); }
+.btn.primary:disabled .btn-sub { color: var(--text-muted); }
+.btn-sub.warn { color: var(--warning); }
+.pill.update, .pill.playing { color: var(--focus); }
+.pill.update i, .pill.playing i { background: var(--focus); }
+.pill.checking i { background: var(--text-muted); }
+.note.update, .note.playing { color: var(--focus); }
+.panel-note { margin: 0; font-size: 12.5px; color: var(--warning); }
+.links { display: flex; flex-wrap: wrap; gap: 8px; }
+.links .btn { min-height: 38px; }
+
+/* Rooms: in a game's tab and the top-level page */
+.rooms { display: flex; flex-direction: column; gap: 8px; }
+.room { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.room:last-child { border-bottom: 0; }
+.room > div:first-child, .room-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.room .btn { min-height: 34px; min-width: 84px; }
+.rooms-page h2 { margin: 4px 0 14px; font: 600 24px var(--font-title); }
+.room-list { display: flex; flex-direction: column; max-width: 900px; }
+.room-art { position: relative; width: 96px; height: 54px; flex: none; border-radius: 8px; overflow: hidden; }
+
+/* Dialogs (Host, Join, Uninstall) */
+.scrim { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: #0008; animation: fade 0.12s; }
+.dialog {
+  width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 12px; padding: 20px 22px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 48px #000a;
+}
+.dialog h3 { margin: 0; font: 600 22px var(--font-title); }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.field input, .field select {
+  height: 36px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  font: 15px var(--font-body);
+}
+.field input:focus, .field select:focus { outline: none; border-color: var(--focus); }
+.dialog-note { margin: 0; font-size: 13px; color: var(--text-muted); min-height: 18px; }
+.dialog-row { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-row .btn { min-height: 38px; min-width: 96px; }
+
+/* A short notice over the bottom of the content */
+.toast {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); max-width: min(640px, 90%);
+  padding: 10px 16px; border-radius: 8px; background: var(--surface-hover); border: 1px solid var(--border);
+  box-shadow: 0 10px 30px #0009; font-size: 13.5px; animation: drop 0.16s ease-out;
+}
+.toast.ok { border-color: color-mix(in srgb, var(--success) 50%, var(--border)); }
+.toast.error { border-color: color-mix(in srgb, #ff6464 60%, var(--border)); }
+
+.loading { height: 100%; display: grid; place-content: center; gap: 12px; text-align: center; padding: 24px; }
+.loading h2 { font: 600 24px var(--font-title); }
+.loading p { max-width: 640px; color: var(--text-muted); white-space: pre-wrap; }
+
 /* Status bar: key (or controller) hints at the left, the launcher's state at the right */
 .status {
   display: flex; align-items: center; gap: 8px; padding: 0 16px;
@@ -236,3 +288,6 @@ kbd {
 .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
 .status .sep { width: 1px; height: 12px; background: var(--border); margin: 0 4px; }
 .status .ok { color: var(--success); }
+.status .warn { color: var(--warning); }
+.status .playing { display: inline-flex; align-items: center; gap: 8px; color: var(--focus); }
+.status .dot.live { background: var(--focus); }
