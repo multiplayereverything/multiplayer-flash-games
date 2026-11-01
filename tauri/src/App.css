@@ -423,3 +423,30 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
 .credit .linkbtn { font-size: 12px; }
 /* Messages stay under dialogs, and every page keeps room at its foot so they never cover its last buttons. */
 .page, .g-body { padding-bottom: 130px; }
+
+/* ---------- Ctrl+K: go to a game or page ---------- */
+.scrim.top { place-items: start center; padding-top: 12vh; }
+.switcher { width: min(560px, calc(100vw - 32px)); border-radius: 12px; background: var(--card); border: 1px solid var(--line2); box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .95); overflow: hidden; animation: rise .18s var(--ease) both; }
+.sw-input { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 52px; border-bottom: 1px solid var(--line2); color: var(--muted); }
+.sw-input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 15px; }
+.sw-input input::placeholder { color: var(--muted); }
+.sw-list { display: flex; flex-direction: column; padding: 6px; max-height: 420px; overflow-y: auto; }
+.sw-list button { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 6px; text-align: left; }
+.sw-list button.on { background: var(--card2); box-shadow: inset 0 0 0 1px var(--line3); }
+.sw-list .th { position: relative; width: 48px; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; flex: none; background: var(--card3); display: grid; place-items: center; color: var(--muted); }
+.sw-list .th .glyph { font-size: 16px; }
+.sw-list .k { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sw-list b { font: 16px var(--font-name); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-list small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-empty { padding: 18px; text-align: center; color: var(--muted); }
+.sw-foot { display: flex; gap: 16px; padding: 8px 14px; border-top: 1px solid var(--line2); font-size: 12px; color: var(--muted); }
+.switcher kbd, .sw-foot kbd { font: 600 11px var(--font-body); padding: 1px 6px; border-radius: 4px; background: var(--card2); border: 1px solid var(--line2); color: var(--ink); margin-right: 2px; }
+
+/* ---------- while the library loads: the window's own shape, still (no shimmer) ---------- */
+.boot-shape { height: 100%; display: flex; }
+.boot-shape .side { padding: 22px 24px; gap: 14px; }
+.boot-shape .bar { height: 12px; border-radius: 6px; background: var(--card); }
+.boot-shape .side .bar { background: color-mix(in srgb, var(--side) 88%, var(--side-ink)); }
+.boot-shape main { padding: 40px 32px; display: flex; flex-direction: column; gap: 24px; }
+.boot-shape .grid .ghost { aspect-ratio: 16 / 13; border-radius: 12px; background: var(--card); }
+.boot-shape .note { color: var(--muted); font-size: 12px; }

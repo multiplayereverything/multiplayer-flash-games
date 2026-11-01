@@ -8,6 +8,7 @@ import { GamePage, type PageActions } from './GamePage'
 import { LobbyPage } from './LobbyPage'
 import { SettingsPage } from './SettingsPage'
 import { SetupPage } from './SetupPage'
+import { Switcher, type SwitchTarget } from './Switcher'
 import {
   downloadGame, launch, live, loadLibrary, loadMods, loadAllRooms, minimizeWindow, modJob, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
@@ -155,6 +156,7 @@ export default function App() {
   const [server, setServer] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown')
   const [pingMs, setPingMs] = useState<number | null>(null)
   const [allRooms, setAllRooms] = useState<Record<string, Rooms> | null>(null)
+  const [switcher, setSwitcher] = useState(false)
   // A game whose file is missing, opened from a Play outside its page: its page offers the download at once.
   const [askDownload, setAskDownload] = useState('')
   // The first-run setup: opens when the launcher starts without a player name (the C++ window asks for one then
@@ -410,7 +412,10 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSwitcher((v) => !v)
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
         focusSearch()
       } else if (e.key.startsWith('Arrow') && e.target instanceof HTMLElement && e.target.closest('.card-c, .nav, .seg')) {
@@ -470,6 +475,19 @@ export default function App() {
     })
   }, [lib, cat, query, sort, inCat])
 
+  if (!lib && !loadError) {
+    // The window's shape while the C++ launcher answers, so nothing jumps when the library arrives.
+    return (
+      <div className="boot-shape" aria-busy="true" aria-label="Reading the library">
+        <aside className="side">{[60, 40, 70, 55, 65, 50, 45].map((w, i) => <span key={i} className="bar" style={{ width: `${w}%` }} />)}</aside>
+        <main>
+          <span className="bar" style={{ width: 220, height: 28 }} />
+          <span className="note">Reading the library...</span>
+          <div className="grid">{Array.from({ length: 8 }, (_, i) => <span key={i} className="ghost" />)}</div>
+        </main>
+      </div>
+    )
+  }
   if (!lib) {
     return (
       <div className="boot">
@@ -479,9 +497,7 @@ export default function App() {
             <p>{loadError}</p>
             <button className="btn main" onClick={() => { setLoadError(''); refresh() }}>Try again</button>
           </>
-        ) : (
-          <p>Reading the library...</p>
-        )}
+        ) : null}
       </div>
     )
   }
@@ -646,7 +662,7 @@ export default function App() {
         </main>
         <footer className="statusbar">
           <span className="hints">
-            {(pad ? [['A', 'Select'], ['B', 'Back'], ['Y', 'Search'], ['LB/RB', 'Sections']] : [['Enter', 'Open'], ['Ctrl+F', 'Search'], ['Esc', 'Back']])
+            {(pad ? [['A', 'Select'], ['B', 'Back'], ['Y', 'Search'], ['LB/RB', 'Sections']] : [['Enter', 'Open'], ['Ctrl+K', 'Go to'], ['Ctrl+F', 'Search'], ['Esc', 'Back']])
               .map(([k, l]) => <span key={k}><kbd>{k}</kbd>{l}</span>)}
           </span>
           <span className="grow" />
@@ -658,6 +674,29 @@ export default function App() {
         </footer>
       </div>
 
+      {switcher && (
+        <Switcher lib={lib} onClose={() => setSwitcher(false)}
+          pages={[
+            { kind: 'page', id: 'home', label: 'Home', note: 'The banner and the rows', icon: 'E80F' },
+            { kind: 'page', id: 'library', label: 'All games', note: `${lib.games.length} games`, icon: 'E8A9' },
+            { kind: 'page', id: 'rooms', label: 'Open rooms', note: 'Rooms on the central server', icon: 'E716' },
+            { kind: 'page', id: 'settings', label: 'Settings', note: 'Your name, folders and choices', icon: 'E713' },
+            { kind: 'page', id: 'setup', label: 'Run setup again', note: 'The first-run steps', icon: 'E72C' },
+            ...sideList.filter((c) => c.id !== 'rooms').map((c): SwitchTarget => ({ kind: 'page', id: 'cat:' + c.id, label: c.name, note: `${c.n} games`, icon: c.icon })),
+          ]}
+          onPick={(t) => {
+            setSwitcher(false)
+            if (t.kind === 'game') go('game', t.id)
+            else if (t.id === 'setup') setSetupOpen(true)
+            else if (t.id.startsWith('cat:')) {
+              setCat(t.id.slice(4))
+              go('library')
+            } else {
+              if (t.id === 'library') setCat('all')
+              go(t.id as View)
+            }
+          }} />
+      )}
       <div className="island" aria-live="polite">
         {jobs.map(({ game, line }) => (
           <div className="isl" key={game!.id}>
