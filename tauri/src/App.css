@@ -458,3 +458,8 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
 .grid.compact .card-c .name { font-size: 16px; line-height: 22px; }
 .grid.compact .card-c .ppl { display: none; }
 .grid.compact .card-c .st { height: 18px; }
+
+/* Covers are small pictures: stretched across the header they go soft, so the header shows them blurred and dark,
+   as Steam does for a game without wide art, and the sharp cover sits in front. */
+.gp-hero > .cover:not(.cover-pixel) img { filter: blur(8px) brightness(.55) saturate(1.15); transform: scale(1.12); }
+.slide > .cover.bg:not(.cover-pixel) img { filter: blur(3px) brightness(.8); transform: scale(1.04); }

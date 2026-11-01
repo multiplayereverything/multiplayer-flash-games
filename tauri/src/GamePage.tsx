@@ -5,7 +5,7 @@ import type { Action, Game, Library, ModInfo, RelayStatus, Room } from './api'
 import { copyText, loadRooms, open, setGamePlayer, setGameSetting } from './api'
 import {
   agoText, fileAction, hostChoices, isCoop, joinByAddress, joinByCode, lastPlayed, looksLikeAddress, mainActions, moreActions, newer,
-  playedText, stateLine,
+  stateLine,
 } from './model'
 import { Glyph, PanelButton, SiteBlock, Slots, Switch } from './ui'
 
@@ -316,7 +316,7 @@ export function GamePage({
   ]
   const g = game.guide
   const stats: [string, string][] = [
-    ['Played', !u?.plays ? 'Not yet' : u.seconds >= 3600 ? `${Math.floor(u.seconds / 3600)} h ${Math.round((u.seconds % 3600) / 60)} min` : u.seconds >= 60 ? `${Math.round(u.seconds / 60)} min` : 'Under a minute'],
+    ['Played', !u?.plays ? 'Not yet' : u.seconds >= 3600 ? `${Math.floor(u.seconds / 3600)} h ${Math.round((u.seconds % 3600) / 60)} min` : u.seconds >= 60 ? `${Math.round(u.seconds / 60)} min` : '< 1 min'],
     ['Last played', lastPlayed(lib, game.id) ? agoText(lastPlayed(lib, game.id)) : 'Never'],
     ['Players', game.players.replace(/ \(.*\)$/, '')],
     game.mod ? ['Version', mod?.installedVersion || game.mod.pinnedVersion || mod?.newest || 'Unknown'] : ['Times played', String(u?.plays ?? 0)],
@@ -358,7 +358,6 @@ export function GamePage({
               <>
                 <div className="stats">{stats.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
                 <p className="blurb">{game.description}</p>
-                <p className="muted">{playedText(lib, game.id)}</p>
                 {g.steps.length > 0 && (
                   <div className="card">
                     <h3>How to play</h3>

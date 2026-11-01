@@ -25,6 +25,8 @@ export function statusOf(g: Game, lib: Library, mods: Record<string, ModInfo> | 
     if (m.published && newer(m.newest, m.installedVersion)) return { kind: 'update', text: `Update ${m.newest} available` }
     return { kind: 'installed', text: `Installed ${m.installedVersion}` }
   }
+  // A game played from its own page (only links here, as community mods are) is as ready as the C++ card says.
+  if (g.actions.length > 0 && g.actions.every((a) => a.link)) return { kind: 'ready', text: t('status.ready', 'Ready') }
   const states = g.actions.filter((a) => a.state).map((a) => a.state)
   if (states.includes('ready')) return { kind: 'ready', text: t('status.ready', 'Ready') }
   if (states.includes('noPlayer')) return { kind: 'missing', text: t('status.noPlayer', 'No Flash player found') }

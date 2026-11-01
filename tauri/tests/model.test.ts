@@ -73,6 +73,10 @@ test('the state line for Flash games', () => {
   assert.equal(statusOf(game({ actions: [action({ id: 'play' })] }), lib, null, true).kind, 'playing')
 })
 
+test('a game played from its own page is ready', () => {
+  assert.equal(statusOf(game({ actions: [action({ id: 'page', link: 'https://example.com', state: undefined })] }), lib, null, false).kind, 'ready')
+})
+
 test('the state line for PC mods', () => {
   const g = game({ mod: { modName: 'M', publisher: '', website: '', gameName: 'Fake Game', pinnedVersion: '' }, actions: [] })
   const m = (x: Partial<ModInfo>): Record<string, ModInfo> => ({
