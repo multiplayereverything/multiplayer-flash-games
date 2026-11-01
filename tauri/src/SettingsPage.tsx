@@ -1,7 +1,7 @@
 // Settings, as the C++ Settings window has them: each change is saved at once to the launcher's own settings.json,
 // so both windows agree.
 import { useState, type ReactNode } from 'react'
-import { open, pickFolder, setSetting, type Library, type Settings } from './api'
+import { copyText, open, pickFolder, setSetting, type Library, type Settings } from './api'
 import { Glyph, Switch } from './ui'
 
 function Row({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -13,11 +13,27 @@ function Row({ title, note, children }: { title: string; note?: string; children
   )
 }
 
-export function SettingsPage({ lib, onChanged, onRunSetup }: { lib: Library; onChanged: (s: Partial<Settings>) => void; onRunSetup: () => void }) {
+// What the C++ lobby's Copy diagnostics gives a bug report: versions, folders, the server, the players.
+function diagnostics(lib: Library, server: string): string {
+  const win = /Windows NT ([\d.]+)/.exec(navigator.userAgent)?.[1]
+  return [
+    `Multiplayer Everything Launcher ${lib.launcherVersion} (Tauri window)`,
+    `Windows NT ${win ?? 'unknown'}`,
+    `Config: ${lib.configDir}`,
+    `Data: ${lib.dataDir}`,
+    `Online features: ${lib.user.online ? 'on' : 'off'}, name set: ${lib.user.playerName ? 'yes' : 'no'}`,
+    `Server: ${lib.roomsServer || 'none'}, ${server}`,
+    'Players:',
+    ...lib.players.map((p) => `  ${p.name}: ${p.found ? `${p.exe ?? 'found'}${p.version ? ` (${p.version})` : ''}` : 'not found'}`),
+  ].join('\n')
+}
+
+export function SettingsPage({ lib, onChanged, onRunSetup, server = '' }: { lib: Library; onChanged: (s: Partial<Settings>) => void; onRunSetup: () => void; server?: string }) {
   const t = (k: string, fallback: string) => (lib.text[k] ?? fallback).replace('${VERSION}', lib.launcherVersion).replace(/…|…/g, '...')
   const u = lib.user
   const [name, setName] = useState(u.playerName)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const save = (key: keyof Settings, value: string | boolean) => {
     setError('')
@@ -93,6 +109,9 @@ export function SettingsPage({ lib, onChanged, onRunSetup }: { lib: Library; onC
           {lib.players.filter((p) => p.found).map((p) => <span key={p.id} className="ver">{p.name} {p.version || 'installed'}</span>)}
         </span>
         <button className="btn sm" onClick={onRunSetup}>Run setup again</button>
+        <button className="btn sm" onClick={() => copyText(diagnostics(lib, server)).then(() => setCopied(true)).catch((e) => setError(String(e)))}>
+          {copied ? 'Copied' : 'Copy diagnostics'}
+        </button>
         {lib.website && <button className="linkbtn" onClick={() => open(lib.website)}><Glyph code="E8A7" size={14} />{t('settings.github', 'Project page')}</button>}
       </div>
       {error && <p className="error-text">{error}</p>}

@@ -100,13 +100,14 @@ export interface Settings {
 export interface Library {
   branding: { title: string; subtitle: string; playerColors: string[] }
   dataDir: string
+  configDir: string
   flashpoint: string
   gamesDir: string
   defaultGamesDir: string
   launcherVersion: string
   website: string
   logFile: string
-  players: { id: string; name: string; found: boolean; installable: boolean; version: string; website: string }[]
+  players: { id: string; name: string; found: boolean; installable: boolean; version: string; website: string; exe?: string }[]
   theme: string
   roomsServer: string
   discord: boolean
@@ -308,7 +309,7 @@ function sampleLibrary(): Library {
   })
   return {
     branding: { ...s.branding, playerColors: ['#E5484D', '#3E7BFA', '#2EBD6B', '#F5B83D', '#E5484D', '#3E7BFA'] },
-    dataDir: '', flashpoint: '', gamesDir: '', defaultGamesDir: '', launcherVersion: 'sample', website: '', logFile: '',
+    dataDir: '', configDir: '', flashpoint: '', gamesDir: '', defaultGamesDir: '', launcherVersion: 'sample', website: '', logFile: '',
     players: [{ id: 'ruffle', name: 'Ruffle Together', found: true, installable: true, version: '1.0.5', website: '' }],
     theme: 'dark', roomsServer: '', discord: false,
     categories: s.categories,

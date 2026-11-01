@@ -494,6 +494,8 @@ const scenarios = {
       await wd.click("//button[contains(@class,'setbtn')]")
       return wd.exec("return document.querySelector('.set-foot')?.textContent ?? ''")
     })()).includes('Fake Player'))
+    await wd.click(button('Copy diagnostics'))
+    await check('Copy diagnostics puts a report on the clipboard', (await waitFor(() => clipboard().includes('Multiplayer Everything Launcher') && clipboard().includes('Fake Player'), 4000)) === true)
   },
 
   async lobbyquick() {

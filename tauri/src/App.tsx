@@ -584,7 +584,8 @@ export default function App() {
   let page: ReactNode
   if (view === 'settings') {
     page = (
-      <SettingsPage lib={lib} onChanged={changed} onRunSetup={() => setSetupOpen(true)} />
+      <SettingsPage lib={lib} onChanged={changed} onRunSetup={() => setSetupOpen(true)}
+        server={server === 'online' ? `online, ping ${pingMs ?? '?'} ms` : server} />
     )
   } else if (view === 'lobby' && pageGame) {
     page = <LobbyPage game={pageGame} lib={lib} quick={lobbyQuick} onClose={back} />
