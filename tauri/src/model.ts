@@ -92,6 +92,12 @@ export function leadAction(g: Game): Action | undefined {
 export const fileAction = (g: Game): Action | undefined =>
   g.actions.find((a) => a.id === g.joinAction && plain(a)) ?? g.actions.find((a) => plain(a) && !a.original)
 
+// What the C++ rooms list says after a room's name: whether its game has started and whether it has a password.
+export function roomAbout(r: { state: string; locked: boolean; region?: string }, text: Record<string, string>): string {
+  return [r.region, r.state === 'ingame' ? text['rooms.playing'] ?? 'playing' : '', r.locked ? text['rooms.locked'] ?? 'password' : '']
+    .filter(Boolean).join(', ')
+}
+
 // "2-4 players (one keyboard)" without the note in brackets, for tight places.
 export const playersShort = (g: Game) => g.players.replace(/ \(.*\)$/, '')
 

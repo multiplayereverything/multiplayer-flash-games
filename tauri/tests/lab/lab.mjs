@@ -154,8 +154,10 @@ const scenarios = {
     await wd.click(nav('Rooms'))
     await check('Open rooms lists the server\'s rooms', (await waitFor(async () => (await wd.count("//div[contains(@class,'row-card')]")) >= 2, 10000)) === true)
     await check('a full room offers no Join', (await wd.count(`//div[contains(@class,'row-card')]${button('Full')}`)) >= 1)
+    const full = await wd.exec("return [...document.querySelectorAll('.row-card')].find(r => r.textContent.includes('Full room'))?.textContent ?? ''")
+    await check('a room says when its game has started and has a password', full.includes('playing') && full.includes('password'), full)
     clearArgs()
-    await wd.click(`//div[contains(@class,'row-card')][.//*[normalize-space(.)='Co-op Test']]${button('Join')}`)
+    await wd.click(`//div[contains(@class,'row-card')][.//small[starts-with(normalize-space(.),'Co-op Test')]]${button('Join')}`)
     const a = await launchedWith()
     await check('Join on a room joins it with its code', a.includes('--coop-join-relay') && a.includes('ABCDE') && a.includes(`127.0.0.1:${PORTS.rooms}`), a.join(' '))
   },

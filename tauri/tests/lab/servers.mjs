@@ -17,9 +17,13 @@ export function startServers(work, ports) {
     createReadStream(file).pipe(res)
   }).listen(ports.http, '127.0.0.1')
 
-  // The room list every game asks for: one open room and one full one.
+  // The room list every game asks for: one open room, and one full one with a password whose game has started.
+  // The newer answer (code, players, max, locked, state, region, ping, version, name) goes to "RELAY|2|ROOMS|<game>",
+  // the older one to "RELAY|1|LIST|<game>".
   const rooms = net.createServer((s) => {
-    s.on('data', () => s.end('LIST|ABCDE,1,4,Test room;FULL1,4,4,Full room\0'))
+    s.on('data', (d) => s.end(String(d).includes('|ROOMS|')
+      ? 'ROOMS|ABCDE,1,4,0,lobby,EU,40,1,Test room;FULL1,4,4,1,ingame,US,80,1,Full room\0'
+      : 'LIST|ABCDE,1,4,Test room;FULL1,4,4,Full room\0'))
     s.on('error', () => {})
   }).listen(ports.rooms, '127.0.0.1')
 

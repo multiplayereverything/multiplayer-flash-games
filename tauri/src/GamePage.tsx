@@ -5,7 +5,7 @@ import type { Action, Game, Library, ModInfo, RelayStatus, Room } from './api'
 import { copyText, loadRooms, open, setGamePlayer, setGameSetting } from './api'
 import {
   agoText, fileAction, hostChoices, isCoop, joinByAddress, joinByCode, lastPlayed, looksLikeAddress, mainActions, moreActions, newer,
-  stateLine,
+  roomAbout, stateLine,
 } from './model'
 import { Glyph, PanelButton, SiteBlock, Slots, Switch } from './ui'
 
@@ -108,7 +108,7 @@ function JoinDialog({ game, onJoin, onClose }: { game: Game; onJoin: (a: Action,
   )
 }
 
-function RoomsTab({ game, onJoinRoom }: { game: Game; onJoinRoom: (code: string) => void }) {
+function RoomsTab({ game, text, onJoinRoom }: { game: Game; text: Record<string, string>; onJoinRoom: (code: string) => void }) {
   const [rooms, setRooms] = useState<Room[] | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -133,7 +133,7 @@ function RoomsTab({ game, onJoinRoom }: { game: Game; onJoinRoom: (code: string)
       <div className="dl">
         {rooms?.map((r) => (
           <div key={r.code} className="room-line">
-            <span><b>{r.name || r.code}</b><small>{r.code}, {r.players} of {r.max} players</small></span>
+            <span><b>{r.name || r.code}</b><small>{[r.code, `${r.players} of ${r.max} players`, roomAbout(r, text)].filter(Boolean).join(', ')}</small></span>
             <button className="btn sm" disabled={r.players >= r.max} onClick={() => onJoinRoom(r.code)}>{r.players >= r.max ? 'Full' : 'Join'}</button>
           </div>
         ))}
@@ -391,7 +391,7 @@ export function GamePage({
                 )}
               </div>
             )}
-            {tab === 'rooms' && <RoomsTab game={game} onJoinRoom={(code) => { const a = joinByCode(game); if (a) run(a, code) }} />}
+            {tab === 'rooms' && <RoomsTab game={game} text={lib.text} onJoinRoom={(code) => { const a = joinByCode(game); if (a) run(a, code) }} />}
           </div>
         </div>
 

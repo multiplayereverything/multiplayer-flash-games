@@ -14,7 +14,7 @@ import {
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setSetting, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room, type Rooms, type Settings,
 } from './api'
-import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
+import { agoText, isCoop, roomAbout, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
 import { Glyph, Pips, Seg, Shelf, Tile } from './ui'
 import { moveFocus, usePad } from './usePad'
 import './App.css'
@@ -125,7 +125,7 @@ function RoomsPage({ lib, all, onJoin, onOpen }: { lib: Library; all: Record<str
             <button className="th" onClick={() => onOpen(game)} aria-label={game.name}><Cover game={game} className="fill" /></button>
             <div className="k">
               <b>{room.name || game.name}</b>
-              <small>{game.name}</small>
+              <small>{[game.name, roomAbout(room, lib.text)].filter(Boolean).join(', ')}</small>
             </div>
             <span className="tag cy">{room.code}</span>
             <span className="num"><b>{room.players} of {room.max}</b><small>players</small></span>
