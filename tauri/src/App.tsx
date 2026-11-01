@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Cover } from './Cover'
 import { GamePage, type PageActions } from './GamePage'
+import { LobbyPage } from './LobbyPage'
+import { SettingsPage } from './SettingsPage'
 import {
-  launch, live, loadLibrary, loadMods, loadRooms, modJob, onLaunchEnded, onModProgress, setFavorite,
-  type Game, type Library, type ModInfo, type Room,
+  downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, onDownloadEnded, onHostStatus,
+  onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession,
+  type Game, type Library, type ModInfo, type RelayStatus, type Room,
 } from './api'
 import { agoText, joinByCode, lastPlayed, leadAction, platformBadge, statusOf } from './model'
 import { usePad } from './usePad'
@@ -201,6 +204,11 @@ export default function App() {
   // A mod job's latest progress line, per game, while it runs.
   const [modLines, setModLines] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState<Notice | null>(null)
+  // Hosting with the built-in relay, per game: the launcher session and what it last reported.
+  const [hosting, setHosting] = useState<Record<string, { session: number; relay: RelayStatus }>>({})
+  const [downloading, setDownloading] = useState<Set<string>>(new Set())
+  // Pages over the library: Settings, or a game's lobby.
+  const [overlay, setOverlay] = useState<{ kind: 'settings' } | { kind: 'lobby'; game: string } | null>(null)
   const search = useRef<HTMLInputElement>(null)
 
   const say = useCallback((text: string, kind: Notice['kind'] = 'info') => setNotice({ text, kind }), [])
@@ -228,6 +236,12 @@ export default function App() {
         n.delete(e.session)
         return n
       })
+      setHosting((h) => {
+        if (h[e.game]?.session !== e.session) return h
+        const n = { ...h }
+        delete n[e.game]
+        return n
+      })
       if (e.code !== 0) say(e.message || `The launcher stopped (exit ${e.code})`, 'error')
       refresh()  // play counts and last played
     })
@@ -244,9 +258,18 @@ export default function App() {
       say(e.ok ? 'Done.' : e.line || 'The mod job failed.', e.ok ? 'ok' : 'error')
       refreshMods()
     })
+    const c = onHostStatus((e) => setHosting((h) => ({ ...h, [e.game]: { session: e.session, relay: e.relay } })))
+    const d = onDownloadEnded((e) => {
+      setDownloading((s) => {
+        const n = new Set(s)
+        n.delete(e.game)
+        return n
+      })
+      say(e.ok ? 'The game files are downloaded.' : e.line || 'The download failed.', e.ok ? 'ok' : 'error')
+      refresh()
+    })
     return () => {
-      a.then((f) => f())
-      b.then((f) => f())
+      for (const p of [a, b, c, d]) p.then((f) => f())
     }
   }, [refresh, refreshMods, say])
 
@@ -266,6 +289,52 @@ export default function App() {
         .then((session) => {
           setPlaying((p) => new Map(p).set(session, game.id))
           say(code ? `Joining room ${code} in ${game.name}...` : `Starting ${game.name}...`, 'ok')
+          if (lib?.user.minimize) void minimizeWindow()
+        })
+        .catch((e) => say(String(e), 'error'))
+    },
+    openLobby: (game) => setOverlay({ kind: 'lobby', game: game.id }),
+    stopHosting: (session) => {
+      stopSession(session)
+        .then(() => {
+          setHosting((h) => Object.fromEntries(Object.entries(h).filter(([, v]) => v.session !== session)))
+          setPlaying((p) => {
+            const n = new Map(p)
+            n.delete(session)
+            return n
+          })
+          say('Hosting stopped.', 'info')
+        })
+        .catch((e) => say(String(e), 'error'))
+    },
+    download: (game) => {
+      setDownloading((s) => new Set(s).add(game.id))
+      downloadGame(game.id).catch((e) => {
+        setDownloading((s) => {
+          const n = new Set(s)
+          n.delete(game.id)
+          return n
+        })
+        say(String(e), 'error')
+      })
+    },
+    locate: async (game, action) => {
+      const file = await pickFile(`Where is the ${game.name} game file?`, ['swf', 'html', 'htm'])
+      if (!file) return
+      setGameFile(game.id, action.id, file)
+        .then(refresh)
+        .then(() => say(`${game.name} uses ${file}.`, 'ok'))
+        .catch((e) => say(String(e), 'error'))
+    },
+    chooseFolder: async (game) => {
+      const name = game.mod?.gameName || game.name
+      const dir = await pickFolder(`Where is ${name} installed?`)
+      if (!dir) return
+      setGameDir(game.id, dir)
+        .then(() => loadMods())
+        .then((m) => {
+          setMods(m)
+          say(m[game.id]?.gameFound ? `${name} found in ${dir}.` : `${name} isn't in that folder.`, m[game.id]?.gameFound ? 'ok' : 'error')
         })
         .catch((e) => say(String(e), 'error'))
     },
@@ -404,17 +473,32 @@ export default function App() {
         <nav className="toptabs" role="tablist">
           {(['library', 'rooms'] as const).map((t) => (
             <button key={t} role="tab" aria-selected={top === t && !pageGame} className={`toptab ${top === t ? 'on' : ''}`}
-              onClick={() => { back(); setTop(t) }}>
+              onClick={() => { back(); setOverlay(null); setTop(t) }}>
               {t === 'library' ? 'Library' : 'Rooms'}
             </button>
           ))}
         </nav>
         <div className="grow" />
-        <button className="ghost" title="Settings open in the C++ launcher for now"><Icon code="E713" /> Settings</button>
+        <button className="ghost" onClick={() => setOverlay({ kind: 'settings' })}><Icon code="E713" /> Settings</button>
       </header>
 
       <main className="body">
-        {pageGame ? (
+        {overlay?.kind === 'settings' ? (
+          <div className="library">
+            <SettingsPage
+              lib={lib}
+              onClose={() => setOverlay(null)}
+              onChanged={(s) => {
+                setLib((l) => (l ? { ...l, user: { ...l.user, ...s } } : l))
+                if ('gamesDir' in s || 'defaultPlayer' in s) refresh()  // file states depend on these
+              }}
+            />
+          </div>
+        ) : overlay?.kind === 'lobby' && lib.games.some((g) => g.id === overlay.game) ? (
+          <div className="library">
+            <LobbyPage game={lib.games.find((g) => g.id === overlay.game)!} lib={lib} onClose={() => setOverlay(null)} />
+          </div>
+        ) : pageGame ? (
           <GamePage
             key={pageGame.id}
             game={pageGame}
@@ -422,6 +506,8 @@ export default function App() {
             mods={mods}
             playing={playingIds.has(pageGame.id)}
             modLine={modLines[pageGame.id]}
+            downloading={downloading.has(pageGame.id)}
+            hosting={hosting[pageGame.id]}
             favorite={favs.has(pageGame.id)}
             onFavorite={() => toggleFav(pageGame.id)}
             onBack={back}

@@ -39,6 +39,7 @@ export interface Game {
   onlineId: string
   joinAction: string
   comingSoon: boolean
+  lobby: boolean
   categories: string[]
   mod?: { modName: string; publisher: string; website: string; gameName: string; pinnedVersion: string }
   guide: { needs: string[]; steps: string[]; tips: string[]; links: { label: string; url: string }[] }
@@ -48,14 +49,29 @@ export interface Game {
 export interface Category { id: string; name: string; icon: string; group: string }
 export interface UserGame { favorite: boolean; plays: number; seconds: number; lastPlayed: number }
 
+export interface Settings {
+  playerName: string
+  minimize: boolean
+  online: boolean
+  defaultPlayer: string
+  gamesDir: string
+  showOffline: boolean
+  showOriginals: boolean
+  autoUpdate: boolean
+}
+
 export interface Library {
   branding: { title: string; subtitle: string; playerColors: string[] }
   dataDir: string
   gamesDir: string
+  defaultGamesDir: string
+  launcherVersion: string
+  website: string
+  logFile: string
   players: { id: string; name: string; found: boolean; installable: boolean }[]
   categories: Category[]
   games: Game[]
-  user: { playerName: string; games: Record<string, UserGame> }
+  user: Settings & { games: Record<string, UserGame> }
   text: Record<string, string>
 }
 
@@ -105,15 +121,82 @@ export const setFavorite = (game: string, on: boolean): Promise<void> => (live ?
 
 export const open = (target: string): Promise<void> => (live ? invoke('open', { target }) : (window.open(target, '_blank'), Promise.resolve()))
 
+export const stopSession = (session: number): Promise<void> => (live ? invoke('stop_session', { session }) : Promise.resolve())
+export const downloadGame = (game: string): Promise<void> => (live ? invoke('download_game', { game }) : Promise.resolve())
+export const setSetting = (key: keyof Settings, value: string | boolean): Promise<void> =>
+  live ? invoke('set_setting', { key, value }) : Promise.resolve()
+export const setGameDir = (game: string, dir: string): Promise<void> => (live ? invoke('set_game_dir', { game, dir }) : Promise.resolve())
+export const setGameFile = (game: string, action: string, file: string): Promise<void> =>
+  live ? invoke('set_game_file', { game, action, file }) : Promise.resolve()
+
+// Folder and file pickers (the dialog plugin); null when the player cancels.
+export async function pickFolder(title: string, start?: string): Promise<string | null> {
+  if (!live) return null
+  const { open: openDialog } = await import('@tauri-apps/plugin-dialog')
+  const r = await openDialog({ directory: true, title, defaultPath: start || undefined })
+  return typeof r === 'string' ? r : null
+}
+export async function pickFile(title: string, extensions: string[]): Promise<string | null> {
+  if (!live) return null
+  const { open: openDialog } = await import('@tauri-apps/plugin-dialog')
+  const r = await openDialog({ title, filters: [{ name: 'Game file', extensions }] })
+  return typeof r === 'string' ? r : null
+}
+
+export const copyText = (text: string): Promise<void> => navigator.clipboard.writeText(text)
+
+export async function minimizeWindow(): Promise<void> {
+  if (!live) return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  await getCurrentWindow().minimize()
+}
+
+// The lobby: the C++ launcher runs the room (--lobby-session); the window sends commands and draws what it prints.
+export type LobbyRequest =
+  | { op: 'host'; direct: boolean; roomName: string; password: string; public: boolean; maxPlayers: number; port: number }
+  | { op: 'join'; direct: boolean; code?: string; address?: string; password: string }
+export type LobbyCommand = { op: 'ready'; v: boolean } | { op: 'start' } | { op: 'chat'; text: string } | { op: 'kick'; slot: number; ban: boolean } | { op: 'leave' }
+export interface LobbyPlayer { slot: number; name: string; host: boolean; ready: boolean; connected: boolean; loaded: boolean; you: boolean; ping: number }
+export interface LobbySnapshot {
+  t: 'snapshot'
+  phase: 'connecting' | 'lobby' | 'starting' | 'ingame' | 'closed'
+  direct: boolean
+  host: boolean
+  reconnecting: boolean
+  locked: boolean
+  isPublic: boolean
+  code: string
+  roomName: string
+  maxPlayers: number
+  mySlot: number
+  gameConnected: boolean
+  reason: string
+  players: LobbyPlayer[]
+  chat: { slot: number; name: string; text: string }[]
+}
+export type LobbyMessage =
+  | LobbySnapshot
+  | { t: 'error'; message: string }
+  | { t: 'game'; state: 'started' | 'failed' | 'exited'; message?: string }
+  | { t: 'closed'; reason: string }
+  | { t: 'ended' }
+
+export const lobbyStart = (game: string, request: LobbyRequest): Promise<void> =>
+  live ? invoke('lobby_start', { game, request }) : Promise.reject(new Error('The lobby needs the Tauri window'))
+export const lobbySend = (command: LobbyCommand): Promise<void> => (live ? invoke('lobby_send', { command }) : Promise.resolve())
+
 export interface LaunchEnded { session: number; game: string; code: number; message: string }
 export interface ModProgress { game: string; line: string; done: boolean; ok: boolean }
+export interface RelayStatus { port: number; addresses: { address: string; adapter: string }[]; peers: { name: string; address: string; host: boolean }[] }
+export interface HostStatus { session: number; game: string; relay: RelayStatus }
 
-export function onLaunchEnded(f: (e: LaunchEnded) => void): Promise<UnlistenFn> {
-  return live ? listen<LaunchEnded>('launch-ended', (e) => f(e.payload)) : Promise.resolve(() => {})
-}
-export function onModProgress(f: (e: ModProgress) => void): Promise<UnlistenFn> {
-  return live ? listen<ModProgress>('mod-progress', (e) => f(e.payload)) : Promise.resolve(() => {})
-}
+const on = <T>(event: string, f: (e: T) => void): Promise<UnlistenFn> =>
+  live ? listen<T>(event, (e) => f(e.payload)) : Promise.resolve(() => {})
+export const onLaunchEnded = (f: (e: LaunchEnded) => void) => on('launch-ended', f)
+export const onModProgress = (f: (e: ModProgress) => void) => on('mod-progress', f)
+export const onDownloadEnded = (f: (e: ModProgress) => void) => on('download-ended', f)
+export const onHostStatus = (f: (e: HostStatus) => void) => on('host-status', f)
+export const onLobby = (f: (e: { game: string; message: LobbyMessage }) => void) => on('lobby', f)
 
 // ---- the sample, shaped like the real answer ----
 
@@ -134,13 +217,13 @@ function sampleLibrary(): Library {
   })
   return {
     branding: { ...s.branding, playerColors: ['#E5484D', '#3E7BFA', '#2EBD6B', '#F5B83D', '#E5484D', '#3E7BFA'] },
-    dataDir: '', gamesDir: '',
+    dataDir: '', gamesDir: '', defaultGamesDir: '', launcherVersion: 'sample', website: '', logFile: '',
     players: [{ id: 'ruffle', name: 'Ruffle Together', found: true, installable: true }],
     categories: s.categories,
     games: s.games.map((g) => ({
       id: g.id, name: g.name, description: g.description ?? '', players: g.players ?? '', maxPlayers: g.maxPlayers ?? 2,
       color: g.color ?? '#3a3f4b', colorEnd: g.colorEnd ?? '#1a1d24', image: g.image ?? '', imageFocus: g.imageFocus ?? 0.5,
-      onlineId: g.online?.id ?? '', joinAction: g.online ? 'online' : '', comingSoon: SAMPLE_SOON.has(g.id), categories: g.categories ?? [],
+      onlineId: g.online?.id ?? '', joinAction: g.online ? 'online' : '', comingSoon: SAMPLE_SOON.has(g.id), lobby: false, categories: g.categories ?? [],
       mod: g.mod ? { modName: g.name, publisher: g.mod.publisher ?? '', website: g.mod.website ?? '', gameName: g.mod.gameName ?? g.name, pinnedVersion: '' } : undefined,
       guide: { needs: [], steps: [], tips: [], links: g.actions.filter((a) => a.link).map((a) => ({ label: a.label, url: a.link! })) },
       actions: g.mod
@@ -154,7 +237,10 @@ function sampleLibrary(): Library {
             ]
           : [action({ id: 'play', label: 'Play' })],
     })),
-    user: { playerName: 'You', games: { gunmayhem2: { favorite: false, plays: 3, seconds: 900, lastPlayed: now - 11 * 3600 } } },
+    user: {
+      playerName: 'You', minimize: false, online: true, defaultPlayer: '', gamesDir: '', showOffline: true, showOriginals: false, autoUpdate: true,
+      games: { gunmayhem2: { favorite: false, plays: 3, seconds: 900, lastPlayed: now - 11 * 3600 } },
+    },
     text: { 'status.ready': 'Ready', 'status.noSwf': 'Game file missing', 'status.noPlayer': 'No Flash player found', 'status.comingSoon': 'Coming soon' },
   }
 }

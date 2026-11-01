@@ -55,11 +55,18 @@ const plain = (a: Action) => !a.mod && !a.link
 // Ruffle Together co-op: the game has both a host and a join action, so Host a game and Join a game stand in for them.
 export const isCoop = (g: Game) => g.actions.some((a) => a.coopHost) && g.actions.some((a) => a.coopJoin)
 
-// The buttons besides Host and Join: what isn't hosting, joining, folded under "more" or the unmodded original.
-export function mainActions(g: Game): Action[] {
+// Settings decide two kinds of action: solo play (show offline) and the unmodded game (show originals).
+export interface Shown { showOffline: boolean; showOriginals: boolean }
+const visible = (a: Action, s: Shown) => (!a.offline || s.showOffline) && (!a.original || s.showOriginals)
+
+// The buttons besides Host and Join: what isn't hosting, joining or folded under "more".
+export function mainActions(g: Game, s: Shown): Action[] {
   const coop = isCoop(g)
-  return g.actions.filter((a) => plain(a) && !a.more && !a.original && !(coop && (a.coopHost || a.coopJoin)))
+  return g.actions.filter((a) => plain(a) && !a.more && visible(a, s) && !(coop && (a.coopHost || a.coopJoin)))
 }
+
+// "Other ways to connect": direct IP and LAN, folded away until asked for.
+export const moreActions = (g: Game, s: Shown): Action[] => g.actions.filter((a) => plain(a) && a.more && visible(a, s))
 
 export interface HostChoice { action: Action; players: number; relay: boolean }
 export const hostChoices = (g: Game): HostChoice[] =>
@@ -75,7 +82,11 @@ export const looksLikeAddress = (s: string) => /[.:]/.test(s.trim())
 // What the banner and a card's Play start: the game's first plain action (PC mods have none here).
 export function leadAction(g: Game): Action | undefined {
   if (g.mod || g.comingSoon) return undefined
-  return g.actions.find((a) => plain(a) && !a.more && !a.original)
+  return g.actions.find((a) => plain(a) && !a.more && !a.original && !a.offline) ?? g.actions.find((a) => plain(a) && !a.more && !a.original)
 }
+
+// The action a game's file is judged by, for Locate (the join action of an online game, else the first plain one).
+export const fileAction = (g: Game): Action | undefined =>
+  g.actions.find((a) => a.id === g.joinAction && plain(a)) ?? g.actions.find((a) => plain(a) && !a.original)
 
 export const platformBadge = (g: Game) => (g.mod ? 'PC' : g.categories.includes('flash') ? 'Flash' : '')

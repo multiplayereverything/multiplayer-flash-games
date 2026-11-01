@@ -32,6 +32,16 @@ pub fn find_exe() -> Result<PathBuf, String> {
     Err(format!("{EXE} wasn't found next to this app; set FL_LAUNCHER_EXE to it"))
 }
 
+/// Starts the launcher with its output (and, for the lobby, its input) piped, for callers that read it as it runs
+/// or stop it (Stop hosting, Leave room).
+pub fn spawn(args: &[String], with_input: bool) -> Result<std::process::Child, String> {
+    let mut c = command(args)?;
+    if with_input {
+        c.stdin(Stdio::piped());
+    }
+    c.spawn().map_err(|e| format!("Cannot start the launcher: {e}"))
+}
+
 fn command(args: &[String]) -> Result<Command, String> {
     let mut c = Command::new(find_exe()?);
     c.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());

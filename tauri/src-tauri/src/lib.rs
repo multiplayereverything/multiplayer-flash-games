@@ -1,15 +1,21 @@
 mod engine;
 
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::process::{Child, ChildStdin};
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};  // Manager: asset_protocol_scope()
 
-/// What the last library read told us: where the launcher keeps its settings.json.
+/// What the window keeps between calls: where the launcher keeps settings.json, the launchers running a game or
+/// hosting (for Stop hosting), and the lobby session's input.
 #[derive(Default)]
 struct Shared {
     data_dir: Mutex<Option<PathBuf>>,
+    sessions: Arc<Mutex<HashMap<u32, Child>>>,
+    lobby: Mutex<Option<ChildStdin>>,
 }
 
 /// Runs blocking work (the launcher exe) off the window's thread.
@@ -17,8 +23,8 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Sen
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())?
 }
 
-/// Every game, its actions and their state, the UI texts and the user's stats (`--list --json`). The covers' folders
-/// are opened to the window's asset protocol so it can show them.
+/// Every game, its actions and their state, the UI texts, the user's stats and settings (`--list --json`). The
+/// covers are opened to the window's asset protocol so it can show them.
 #[tauri::command]
 async fn library(app: AppHandle, shared: State<'_, Shared>) -> Result<serde_json::Value, String> {
     let lib = blocking(|| engine::run_json(&["--list".into(), "--json".into()])).await?;
@@ -57,34 +63,88 @@ struct LaunchEnded {
     message: String,
 }
 
-/// Starts an action (`--launch game:action`, with a room code or an address when joining). Returns at once; a
-/// `launch-ended` event follows when the launcher returns: straight after the player starts, or for a host action
-/// (which keeps the relay up) when the game closes.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HostStatus {
+    session: u32,
+    game: String,
+    relay: serde_json::Value,
+}
+
+/// Starts an action (`--launch game:action --json`, with a room code or an address when joining). Returns at once.
+/// A host action keeps its launcher running with the relay until the game closes, printing the relay's state as it
+/// changes: those become `host-status` events. `launch-ended` follows when the launcher returns.
 #[tauri::command]
-fn launch(app: AppHandle, game: String, action: String, code: Option<String>, address: Option<String>) -> Result<u32, String> {
+fn launch(
+    app: AppHandle,
+    shared: State<'_, Shared>,
+    game: String,
+    action: String,
+    code: Option<String>,
+    address: Option<String>,
+) -> Result<u32, String> {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
     let session = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let mut args = vec!["--launch".to_string(), format!("{game}:{action}")];
+    let mut args = vec!["--launch".to_string(), format!("{game}:{action}"), "--json".into()];
     if let Some(c) = code.filter(|c| !c.is_empty()) {
         args.extend(["--join".into(), c]);
     }
     if let Some(a) = address.filter(|a| !a.is_empty()) {
         args.extend(["--address".into(), a]);
     }
-    engine::find_exe()?;
+    let mut child = engine::spawn(&args, false)?;
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let sessions = shared.sessions.clone();
+    sessions.lock().unwrap().insert(session, child);
     std::thread::spawn(move || {
-        let (code, message) = match engine::run(&args) {
-            Ok(o) => (o.code, if o.code == 0 { o.stdout.trim().to_string() } else { o.stderr.trim().to_string() }),
-            Err(e) => (-1, e),
+        let err_reader = std::thread::spawn(move || {
+            let mut text = String::new();
+            if let Some(s) = stderr {
+                for l in BufReader::new(s).lines().map_while(Result::ok) {
+                    text.push_str(&l);
+                    text.push('\n');
+                }
+            }
+            text
+        });
+        let mut message = String::new();
+        if let Some(out) = stdout {
+            for line in BufReader::new(out).lines().map_while(Result::ok) {
+                match serde_json::from_str::<serde_json::Value>(&line).ok().and_then(|v| v.get("relay").cloned()) {
+                    Some(relay) => {
+                        let _ = app.emit("host-status", HostStatus { session, game: game.clone(), relay });
+                    }
+                    None => message = line,
+                }
+            }
+        }
+        let err = err_reader.join().unwrap_or_default();
+        let child = sessions.lock().unwrap().remove(&session);
+        // Stop hosting already took it out and killed it: that ends the session quietly.
+        let code = match child {
+            Some(mut c) => c.wait().ok().and_then(|s| s.code()).unwrap_or(-1),
+            None => 0,
         };
+        let message = if code == 0 { message } else { err.trim().to_string() };
         let _ = app.emit("launch-ended", LaunchEnded { session, game, code, message });
     });
     Ok(session)
 }
 
+/// Stop hosting: ends the launcher that keeps the relay up (the game itself keeps running).
+#[tauri::command]
+fn stop_session(shared: State<'_, Shared>, session: u32) -> Result<(), String> {
+    if let Some(mut c) = shared.sessions.lock().unwrap().remove(&session) {
+        c.kill().map_err(|e| e.to_string())?;
+        let _ = c.wait();
+    }
+    Ok(())
+}
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ModEvent {
+struct JobEvent {
     game: String,
     line: String,
     done: bool,
@@ -94,52 +154,167 @@ struct ModEvent {
 /// Installs, updates, repairs or removes a PC mod (`--install-mod` and the rest). Progress lines arrive as
 /// `mod-progress` events, the last one with `done`.
 #[tauri::command]
-fn mod_job(app: AppHandle, op: String, game: String, game_dir: Option<String>) -> Result<(), String> {
+fn mod_job(app: AppHandle, op: String, game: String) -> Result<(), String> {
     let flag = match op.as_str() {
         "install" => "--install-mod",
         "repair" => "--repair-mod",
         "uninstall" => "--uninstall-mod",
         _ => return Err(format!("Unknown mod operation {op}")),
     };
-    let mut args = vec![flag.to_string(), game.clone()];
-    if let Some(d) = game_dir.filter(|d| !d.is_empty()) {
-        args.extend(["--game-dir".into(), d]);
-    }
+    let args = vec![flag.to_string(), game.clone()];
     engine::find_exe()?;
     std::thread::spawn(move || {
         let progress = |line: &str| {
-            let _ = app.emit("mod-progress", ModEvent { game: game.clone(), line: line.to_string(), done: false, ok: true });
+            let _ = app.emit("mod-progress", JobEvent { game: game.clone(), line: line.to_string(), done: false, ok: true });
         };
         let (ok, line) = match engine::stream(&args, progress) {
             Ok((0, _)) => (true, String::new()),
             Ok((_, err)) => (false, err),
             Err(e) => (false, e),
         };
-        let _ = app.emit("mod-progress", ModEvent { game, line, done: true, ok });
+        let _ = app.emit("mod-progress", JobEvent { game, line, done: true, ok });
     });
     Ok(())
 }
 
-/// Marks a game a favorite in the launcher's own settings.json, so both windows agree.
+/// Downloads a game's files from the catalog (`--download-game <id>`); `download-ended` says how it went.
 #[tauri::command]
-fn set_favorite(shared: State<'_, Shared>, game: String, on: bool) -> Result<(), String> {
+fn download_game(app: AppHandle, game: String) -> Result<(), String> {
+    engine::find_exe()?;
+    std::thread::spawn(move || {
+        let (ok, line) = match engine::run(&["--download-game".into(), game.clone()]) {
+            Ok(o) if o.code == 0 => (true, String::new()),
+            Ok(o) => (false, o.stderr.trim().to_string()),
+            Err(e) => (false, e),
+        };
+        let _ = app.emit("download-ended", JobEvent { game, line, done: true, ok });
+    });
+    Ok(())
+}
+
+/// Reads settings.json, lets `change` edit it, and writes it back beside-and-move, so a crash never leaves half a
+/// file. The C++ launcher reads the same file: both windows share favorites, folders and settings.
+fn edit_settings(shared: &Shared, change: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) -> Result<(), String>) -> Result<(), String> {
     let dir = shared.data_dir.lock().unwrap().clone().ok_or("The library hasn't been read yet")?;
     let path = dir.join("settings.json");
     let mut root: serde_json::Value = std::fs::read_to_string(&path)
         .ok()
         .and_then(|t| serde_json::from_str(&t).ok())
         .unwrap_or_else(|| serde_json::json!({}));
-    let games = root.as_object_mut().ok_or("settings.json isn't an object")?.entry("games").or_insert_with(|| serde_json::json!({}));
-    let entry = games.as_object_mut().ok_or("settings.json games isn't an object")?.entry(game).or_insert_with(|| serde_json::json!({}));
-    entry.as_object_mut().ok_or("bad game entry")?.insert("favorite".into(), serde_json::Value::Bool(on));
+    change(root.as_object_mut().ok_or("settings.json isn't an object")?)?;
     let text = serde_json::to_string_pretty(&root).map_err(|e| e.to_string())?;
-    // Written beside and moved over, so a crash never leaves half a file.
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
 }
 
-/// Opens a folder in Explorer or a link in the browser.
+fn game_entry<'a>(root: &'a mut serde_json::Map<String, serde_json::Value>, game: &str) -> Result<&'a mut serde_json::Map<String, serde_json::Value>, String> {
+    root.entry("games")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or("settings.json games isn't an object")?
+        .entry(game.to_string())
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or_else(|| "bad game entry".to_string())
+}
+
+/// Marks a game a favorite.
+#[tauri::command]
+fn set_favorite(shared: State<'_, Shared>, game: String, on: bool) -> Result<(), String> {
+    edit_settings(&shared, |root| {
+        game_entry(root, &game)?.insert("favorite".into(), serde_json::Value::Bool(on));
+        Ok(())
+    })
+}
+
+/// One of the Settings window's choices, by its settings.json key.
+#[tauri::command]
+fn set_setting(shared: State<'_, Shared>, key: String, value: serde_json::Value) -> Result<(), String> {
+    const KEYS: [&str; 8] = ["minimize", "online", "defaultPlayer", "gamesDir", "playerName", "showOffline", "showOriginals", "autoUpdate"];
+    if !KEYS.contains(&key.as_str()) {
+        return Err(format!("{key} isn't a setting"));
+    }
+    // The C++ launcher keeps "minimize" as a number.
+    let value = if key == "minimize" { serde_json::json!(if value.as_bool().unwrap_or(false) { 1 } else { 0 }) } else { value };
+    edit_settings(&shared, |root| {
+        root.insert(key, value);
+        Ok(())
+    })
+}
+
+/// A PC mod's game folder the player chose (the mod commands use it), or empty to detect it again.
+#[tauri::command]
+fn set_game_dir(shared: State<'_, Shared>, game: String, dir: String) -> Result<(), String> {
+    edit_settings(&shared, |root| {
+        let e = game_entry(root, &game)?;
+        if dir.is_empty() {
+            e.remove("gameDir");
+        } else {
+            e.insert("gameDir".into(), serde_json::Value::String(dir));
+        }
+        Ok(())
+    })
+}
+
+/// A game file found with Locate, for one action.
+#[tauri::command]
+fn set_game_file(shared: State<'_, Shared>, game: String, action: String, file: String) -> Result<(), String> {
+    edit_settings(&shared, |root| {
+        let e = game_entry(root, &game)?;
+        let swf = e.entry("swf").or_insert_with(|| serde_json::json!({}));
+        swf.as_object_mut().ok_or("bad swf entry")?.insert(action, serde_json::Value::String(file));
+        Ok(())
+    })
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LobbyEvent {
+    game: String,
+    message: serde_json::Value,
+}
+
+/// Opens a lobby room: runs `--lobby-session <game>`, hands it the host or join request, and passes each line it
+/// prints to the window as a `lobby` event (snapshots, the game starting and exiting, the room closing).
+#[tauri::command]
+fn lobby_start(app: AppHandle, shared: State<'_, Shared>, game: String, request: serde_json::Value) -> Result<(), String> {
+    if shared.lobby.lock().unwrap().is_some() {
+        return Err("A room is already open".into());
+    }
+    let mut child = engine::spawn(&["--lobby-session".into(), game.clone()], true)?;
+    let mut input = child.stdin.take().ok_or("No input to the lobby")?;
+    writeln!(input, "{request}").map_err(|e| e.to_string())?;
+    let stdout = child.stdout.take();
+    *shared.lobby.lock().unwrap() = Some(input);
+    std::thread::spawn(move || {
+        if let Some(out) = stdout {
+            for line in BufReader::new(out).lines().map_while(Result::ok) {
+                if let Ok(message) = serde_json::from_str::<serde_json::Value>(&line) {
+                    let _ = app.emit("lobby", LobbyEvent { game: game.clone(), message });
+                }
+            }
+        }
+        let _ = child.wait();
+        if let Some(s) = app.try_state::<Shared>() {
+            *s.lobby.lock().unwrap() = None;
+        }
+        let _ = app.emit("lobby", LobbyEvent { game, message: serde_json::json!({ "t": "ended" }) });
+    });
+    Ok(())
+}
+
+/// A lobby command: ready, start, chat, kick, leave.
+#[tauri::command]
+fn lobby_send(shared: State<'_, Shared>, command: serde_json::Value) -> Result<(), String> {
+    let mut guard = shared.lobby.lock().unwrap();
+    let input = guard.as_mut().ok_or("No room is open")?;
+    writeln!(input, "{command}").map_err(|e| e.to_string())?;
+    input.flush().map_err(|e| e.to_string())
+}
+
+/// Opens a folder or file's folder in Explorer, or a link in the browser.
 #[tauri::command]
 fn open(target: String) -> Result<(), String> {
     if !(target.starts_with("https://") || target.starts_with("http://") || std::path::Path::new(&target).exists()) {
@@ -152,13 +327,17 @@ fn open(target: String) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(Shared::default())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(tauri_plugin_log::Builder::default().level(log::LevelFilter::Info).build())?;
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![library, mods, rooms, launch, mod_job, set_favorite, open])
+        .invoke_handler(tauri::generate_handler![
+            library, mods, rooms, launch, stop_session, mod_job, download_game, set_favorite, set_setting, set_game_dir,
+            set_game_file, lobby_start, lobby_send, open
+        ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
 }

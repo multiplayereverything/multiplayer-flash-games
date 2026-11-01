@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Cover } from './Cover'
-import type { Action, Game, Library, ModInfo, Room } from './api'
-import { loadRooms, open } from './api'
+import type { Action, Game, Library, ModInfo, RelayStatus, Room } from './api'
+import { copyText, loadRooms, open } from './api'
 import {
-  hostChoices, isCoop, joinByAddress, joinByCode, looksLikeAddress, mainActions, newer, playedText, statusOf,
+  fileAction, hostChoices, isCoop, joinByAddress, joinByCode, looksLikeAddress, mainActions, moreActions, newer, playedText, statusOf,
   type Status,
 } from './model'
 
@@ -252,16 +252,45 @@ function RoomsTab({ game, onJoinRoom }: { game: Game; onJoinRoom: (code: string)
 export interface PageActions {
   run: (game: Game, action: Action, code?: string, address?: string) => void
   modOp: (game: Game, op: 'install' | 'repair' | 'uninstall') => void
+  openLobby: (game: Game) => void
+  stopHosting: (session: number) => void
+  download: (game: Game) => void
+  locate: (game: Game, action: Action) => void
+  chooseFolder: (game: Game) => void
+}
+
+// While this PC hosts with the built-in relay: where friends connect, who has, and Stop hosting.
+function HostingBox({ status, session, onStop }: { status: RelayStatus; session: number; onStop: (s: number) => void }) {
+  const [copied, setCopied] = useState('')
+  const guests = status.peers.filter((p) => !p.host)
+  return (
+    <div className="hosting">
+      <strong>Hosting on port {status.port}</strong>
+      {status.addresses.slice(0, 3).map((a) => {
+        const addr = `${a.address}:${status.port}`
+        return (
+          <div className="hosting-row" key={addr}>
+            <span>{addr} <span className="muted">{a.adapter}</span></span>
+            <button className="btn quiet" onClick={() => copyText(addr).then(() => setCopied(addr))}>{copied === addr ? 'Copied' : 'Copy'}</button>
+          </div>
+        )
+      })}
+      <span className="muted">{guests.length ? `Joined: ${guests.map((p) => p.name || p.address).join(', ')}` : 'Waiting for friends to join...'}</span>
+      <button className="btn center danger" onClick={() => onStop(session)}>Stop hosting</button>
+    </div>
+  )
 }
 
 export function GamePage({
-  game, lib, mods, playing, modLine, favorite, onFavorite, onBack, dir, actions,
+  game, lib, mods, playing, modLine, downloading, hosting, favorite, onFavorite, onBack, dir, actions,
 }: {
   game: Game
   lib: Library
   mods: Record<string, ModInfo> | null
   playing: boolean
   modLine?: string
+  downloading: boolean
+  hosting?: { session: number; relay: RelayStatus }
   favorite: boolean
   onFavorite: () => void
   onBack: () => void
@@ -269,6 +298,7 @@ export function GamePage({
   actions: PageActions
 }) {
   const [tab, setTab] = useState<'overview' | 'details' | 'releases' | 'rooms'>('overview')
+  const [showMore, setShowMore] = useState(false)
   const [dialog, setDialog] = useState<'host' | 'join' | 'uninstall' | null>(null)
   const back = useRef<HTMLButtonElement>(null)
   const title = useDecode(game.name)
@@ -283,10 +313,13 @@ export function GamePage({
     ...(game.onlineId ? ['rooms'] : []),
   ] as ('overview' | 'details' | 'releases' | 'rooms')[]
   const slots = Math.min(6, game.maxPlayers || 2)
-  const coop = isCoop(game)
-  const main = mainActions(game)
+  const coop = isCoop(game) && !game.lobby
+  const main = mainActions(game, lib.user)
+  const more = moreActions(game, lib.user)
   const busy = modLine !== undefined
   const playerMissing = game.actions.some((a) => a.state === 'noPlayer') && !game.actions.some((a) => a.state === 'ready')
+  const fileAct = fileAction(game)
+  const fileMissing = !game.mod && !game.comingSoon && fileAct?.state === 'noFile'
 
   useEffect(() => back.current?.focus(), [])
 
@@ -297,7 +330,13 @@ export function GamePage({
     const name = game.mod.gameName || game.name
     if (!mod) modButtons = <ActionButton label="Checking..." sub="Asking mods-info for the newest version" disabled />
     else if (busy) modButtons = <ActionButton primary label="Working..." sub={modLine || 'Starting'} disabled />
-    else if (!mod.gameFound) modButtons = <ActionButton label={`Install ${name}`} sub={`${name} wasn't found on this PC`} warn disabled />
+    else if (!mod.gameFound)
+      modButtons = (
+        <>
+          <ActionButton label={`Install ${name}`} sub={`${name} wasn't found on this PC`} warn disabled />
+          <ActionButton primary icon="E8B7" label="Choose the game folder" sub={`Where ${name} is installed`} onClick={() => actions.chooseFolder(game)} />
+        </>
+      )
     else if (!mod.installed)
       modButtons = (
         <ActionButton primary icon="E896" label={`Install ${name}`} disabled={!mod.published}
@@ -360,19 +399,40 @@ export function GamePage({
         </div>
         <div className={`pill ${st.kind}`}><i />{st.text}</div>
         {playerMissing && <p className="panel-note">Ruffle Together isn't installed yet. The C++ launcher installs it on its first start.</p>}
+        {hosting && <HostingBox status={hosting.relay} session={hosting.session} onStop={actions.stopHosting} />}
         <div className="actions">
           {game.comingSoon && <div className="soon-note">Not playable yet: this mod is still being built.</div>}
+          {fileMissing && fileAct && (
+            <>
+              <ActionButton primary icon="E896" label={downloading ? 'Downloading...' : 'Download game files'} disabled={downloading}
+                sub="From the game catalog, checked by SHA-256" onClick={() => actions.download(game)} />
+              <ActionButton icon="E8E5" label="Locate the game file" sub="A copy you already have" onClick={() => actions.locate(game, fileAct)} />
+            </>
+          )}
+          {!game.comingSoon && game.lobby && (
+            <ActionButton primary={!fileMissing} icon={''} label="Play online" sub="Host a room or join one" onClick={() => actions.openLobby(game)} />
+          )}
           {!game.comingSoon && coop && (
             <>
-              <ActionButton primary icon={''} label="Host a game" onClick={() => setDialog('host')} />
+              <ActionButton primary={!fileMissing} icon={''} label="Host a game" onClick={() => setDialog('host')} />
               <ActionButton icon={''} label="Join a game" onClick={() => setDialog('join')} />
             </>
           )}
-          {!game.comingSoon && !game.mod && main.map((a, i) => (
-            <ActionButton key={a.id} primary={!coop && i === 0 && a.state === 'ready'} icon={a.icon} label={a.label}
+          {!game.comingSoon && !game.mod && main.filter((a) => !(game.lobby && a.id === game.joinAction)).map((a, i) => (
+            <ActionButton key={a.id} primary={!coop && !game.lobby && i === 0 && a.state === 'ready'} icon={a.icon} label={a.label}
               sub={a.state !== 'ready' ? (a.state === 'noFile' ? 'Game file missing' : a.state === 'noPlayer' ? 'No Flash player found' : 'Server program missing') : a.description || (a.player ?? '')}
               warn={a.state !== 'ready'} onClick={() => run(a)} />
           ))}
+          {!game.comingSoon && more.length > 0 && (
+            <>
+              <button className="btn quiet more-toggle" aria-expanded={showMore} onClick={() => setShowMore(!showMore)}>
+                <Glyph code={showMore ? 'E70E' : 'E70D'} />{showMore ? 'Fewer ways to connect' : 'Other ways to connect'}
+              </button>
+              {showMore && more.map((a) => (
+                <ActionButton key={a.id} icon={a.icon} label={a.label} sub={a.description} onClick={() => (a.asksAddress ? setDialog('join') : run(a))} />
+              ))}
+            </>
+          )}
           {modButtons}
           {game.actions.filter((a) => a.link).map((a) => (
             <button className="btn link" key={a.id} onClick={() => open(a.link)}>

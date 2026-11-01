@@ -271,6 +271,60 @@
 .toast.ok { border-color: color-mix(in srgb, var(--success) 50%, var(--border)); }
 .toast.error { border-color: color-mix(in srgb, #ff6464 60%, var(--border)); }
 
+/* Settings and the lobby: pages over the library */
+.settings, .lobby { max-width: 760px; display: flex; flex-direction: column; gap: 14px; }
+.settings-head { display: flex; align-items: center; justify-content: space-between; }
+.settings-head h2 { font: 600 26px var(--font-title); }
+.settings-head .btn { min-width: 96px; }
+.settings-group { display: flex; flex-direction: column; gap: 10px; }
+.settings-group h4 { margin: 0 0 2px; }
+.check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.check-row input { width: 18px; height: 18px; accent-color: var(--focus); margin: 0; }
+.field.inline { flex-direction: row; align-items: center; justify-content: space-between; color: var(--text); font-size: 14px; }
+.field.inline select, .field.inline input { min-width: 200px; }
+.small { font-size: 12.5px; margin: -4px 0 0; }
+.folder-row { display: flex; gap: 12px; align-items: baseline; }
+.folder-label { flex: none; color: var(--text-muted); }
+.folder-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.button-row .btn { min-height: 36px; min-width: 110px; }
+.settings-foot { display: flex; align-items: center; justify-content: space-between; }
+.error-text { color: #ff8a8a; margin: 0; }
+
+.lobby-tabs { margin: 0; }
+.lobby-room { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; }
+.room-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.room-code { font: 700 34px/1.1 var(--font-title); letter-spacing: 0.08em; }
+.lobby-slots { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.lobby-slot {
+  display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 6px;
+  background: var(--surface-hover); border-left: 3px solid var(--p);
+}
+.lobby-slot.open { opacity: 0.6; }
+.slot-tag { font: 700 14px var(--font-title); width: 26px; }
+.slot-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot-state { font-size: 12.5px; color: var(--text-muted); }
+.slot-state.ready { color: var(--success); }
+.lobby-slot .kick { min-height: 28px; padding: 0 10px; font-size: 13px; }
+.lobby-chat { display: flex; flex-direction: column; gap: 8px; min-height: 280px; }
+.chat-lines { flex: 1; overflow-y: auto; max-height: 320px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+.chat-system { color: var(--text-muted); font-style: italic; }
+.chat-input { display: flex; gap: 8px; }
+.chat-input input { flex: 1; height: 34px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.chat-input input:focus { outline: none; border-color: var(--focus); }
+.lobby-note { margin: 0; color: var(--warning); }
+
+/* While hosting: where friends connect */
+.hosting {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; font-size: 13px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--focus)); border: 1px solid color-mix(in srgb, var(--surface) 45%, var(--focus));
+}
+.hosting strong { font: 600 16px var(--font-title); color: var(--focus); }
+.hosting-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hosting-row .btn { min-height: 28px; padding: 0 10px; font-size: 13px; }
+.btn.danger { min-height: 36px; color: color-mix(in srgb, #ff6464 65%, #fff); background: color-mix(in srgb, var(--surface-hover) 85%, #ff6464); border-color: color-mix(in srgb, var(--surface-hover) 60%, #ff6464); }
+.more-toggle { justify-content: flex-start; color: var(--text-muted); }
+
 .loading { height: 100%; display: grid; place-content: center; gap: 12px; text-align: center; padding: 24px; }
 .loading h2 { font: 600 24px var(--font-title); }
 .loading p { max-width: 640px; color: var(--text-muted); white-space: pre-wrap; }
