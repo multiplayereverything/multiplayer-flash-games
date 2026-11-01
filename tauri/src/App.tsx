@@ -1,136 +1,85 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  ChevronLeft, ChevronRight, Gamepad2, Home, LayoutGrid, Minus, PanelLeft, Play, Radio, Search, Settings as Cog,
+  Square, Star, Users, X,
+} from 'lucide-react'
 import { Cover } from './Cover'
 import { GamePage, type PageActions } from './GamePage'
 import { LobbyPage } from './LobbyPage'
 import { SettingsPage } from './SettingsPage'
 import {
   downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, onDownloadEnded, onHostStatus,
-  onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession,
+  onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room,
 } from './api'
-import { agoText, joinByCode, lastPlayed, leadAction, platformBadge, statusOf } from './model'
+import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
+import { Picker, Pips, Seg, Shelf, Tile, Toggle } from './ui'
 import { usePad } from './usePad'
 import './App.css'
 
-function Icon({ code }: { code: string }) {
-  return <span className="icon" aria-hidden="true">{String.fromCodePoint(parseInt(code, 16))}</span>
-}
+type View = 'home' | 'library' | 'rooms' | 'settings' | 'game' | 'lobby'
+type Sort = 'ours' | 'recent' | 'name' | 'players'
+const SORTS: { id: Sort; name: string }[] = [
+  { id: 'ours', name: 'Our order' },
+  { id: 'recent', name: 'Recent' },
+  { id: 'name', name: 'A to Z' },
+  { id: 'players', name: 'Most players' },
+]
 
-function Pips({ n, colors }: { n: number; colors: string[] }) {
-  return (
-    <span className="pips" aria-hidden="true">
-      {Array.from({ length: Math.min(6, Math.max(1, n)) }, (_, i) => <i key={i} style={{ background: colors[i % colors.length] }} />)}
-    </span>
-  )
-}
+interface Notice { text: string; kind: 'ok' | 'error' | 'info' }
 
-// A chip that opens a list (Quiver's "All" menu): the choice at the left, a chevron at the right.
-function ChipMenu<T extends string>({
-  label, value, options, onChange,
-}: { label: string; value: T; options: { id: T; name: string }[]; onChange: (v: T) => void }) {
-  const [open, setOpen] = useState(false)
-  const root = useRef<HTMLDivElement>(null)
-  const current = options.find((o) => o.id === value)
+// The big banner on Home: a few games one after another, with dots and arrows.
+function Slider({ games, lib, onOpen, onPlay }: { games: Game[]; lib: Library; onOpen: (g: Game) => void; onPlay: (g: Game) => void }) {
+  const [i, setI] = useState(0)
+  const [paused, setPaused] = useState(false)
   useEffect(() => {
-    if (!open) return
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    window.addEventListener('mousedown', close)
-    window.addEventListener('keydown', close)
-    return () => {
-      window.removeEventListener('mousedown', close)
-      window.removeEventListener('keydown', close)
-    }
-  }, [open])
+    if (paused || games.length < 2) return
+    const id = window.setTimeout(() => setI((n) => (n + 1) % games.length), 8000)
+    return () => window.clearTimeout(id)
+  }, [i, paused, games.length])
+  if (!games.length) return null
   return (
-    <div className="chip-menu" ref={root}>
-      <button className="chip-btn" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${current?.name}`} onClick={() => setOpen(!open)}>
-        <span>{current?.name}</span>
-        <Icon code="E70D" />
-      </button>
-      {open && (
-        <div className="menu" role="menu">
-          {options.map((o) => (
-            <button key={o.id} role="menuitemradio" aria-checked={o.id === value} className="menu-item"
-              onClick={() => { onChange(o.id); setOpen(false) }}>
-              <span className="check">{o.id === value ? '✓' : ''}</span>
-              {o.name}
-            </button>
-          ))}
-        </div>
+    <section className="slider" aria-roledescription="carousel" aria-label="Featured" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      {games.map((g, n) => {
+        const lead = leadAction(g)
+        const when = lastPlayed(lib, g.id)
+        return (
+          <div key={g.id} className={`slide ${n === i ? 'on' : ''}`} aria-hidden={n !== i}>
+            <Cover game={g} className="bg" />
+            <div className="sl-in">
+              <span className="kick">{when ? `Played ${agoText(when)}` : g.mod ? 'PC game mod' : g.onlineId ? 'Play online' : 'Featured'}</span>
+              <h2>{g.name}</h2>
+              <span className="based">
+                <Pips n={g.maxPlayers} colors={lib.branding.playerColors} />
+                <span>{g.mod ? <>Mod for <b>{g.mod.gameName || g.name}</b></> : <b>{playersShort(g)}</b>}</span>
+              </span>
+              <p>{g.description}</p>
+              <div className="acts">
+                {lead?.state === 'ready' && <button className="btn main" tabIndex={n === i ? 0 : -1} onClick={() => onPlay(g)}><Play size={16} fill="currentColor" />{lead.label}</button>}
+                <button className="btn" tabIndex={n === i ? 0 : -1} onClick={() => onOpen(g)}>Details</button>
+              </div>
+            </div>
+            <div className="sl-cover"><Cover game={g} className="fill" tall /></div>
+          </div>
+        )
+      })}
+      {games.length > 1 && (
+        <>
+          <div className="sl-ui">
+            {games.map((g, n) => <button key={g.id} className={`dot ${n === i ? 'on' : ''}`} aria-label={g.name} onClick={() => setI(n)} />)}
+          </div>
+          <div className="sl-arrows">
+            <button aria-label="Previous" onClick={() => setI((i + games.length - 1) % games.length)}><ChevronLeft size={18} /></button>
+            <button aria-label="Next" onClick={() => setI((i + 1) % games.length)}><ChevronRight size={18} /></button>
+          </div>
+        </>
       )}
-    </div>
-  )
-}
-
-interface CardProps {
-  game: Game
-  lib: Library
-  mods: Record<string, ModInfo> | null
-  playing: boolean
-  favorite: boolean
-  onOpen: () => void
-  onPlay: () => void
-}
-
-// A poster: the picture is the card, the names sit over its foot. On hover or focus a Play button appears;
-// the card itself opens the game's page.
-function Card({ game, lib, mods, playing, favorite, onOpen, onPlay }: CardProps) {
-  const st = statusOf(game, lib, mods, playing)
-  const badge = platformBadge(game)
-  const lead = leadAction(game)
-  // What wants doing shows at the foot's right; a ready game shows nothing there.
-  const note = st.kind === 'ready' || st.kind === 'installed' ? '' : st.text
-  return (
-    <div className="poster">
-      <button className="poster-open" onClick={onOpen} aria-label={`${game.name}, ${game.players}`}>
-        <Cover game={game} className="fill" />
-        <span className="poster-shade" />
-        {badge && <span className="badge">{badge}</span>}
-        {favorite && <span className="fav icon" aria-label="Favorite">{''}</span>}
-        <span className="poster-foot">
-          <span className="poster-title">{game.name}</span>
-          <span className="poster-meta">
-            <Pips n={game.maxPlayers} colors={lib.branding.playerColors} />
-            <span className="poster-players">{game.players.replace(/ \(.*\)$/, '')}</span>
-            {note && <span className={`note ${st.kind}`}>{note}</span>}
-          </span>
-        </span>
-      </button>
-      {lead && lead.state === 'ready' && (
-        <button className="poster-play" aria-label={`${lead.label}: ${game.name}`} onClick={onPlay}>
-          <Icon code="E768" /> {lead.label}
-        </button>
-      )}
-    </div>
-  )
-}
-
-// The most recently played game, wide, with Play and Open.
-function Hero({ game, when, onOpen, onPlay }: { game: Game; when: number; onOpen: () => void; onPlay: () => void }) {
-  const lead = leadAction(game)
-  return (
-    <section className="hero" aria-label="Continue playing">
-      <Cover game={game} className="fill" />
-      <div className="hero-shade" />
-      <div className="hero-body">
-        <div className="hero-top">
-          <span className="chip">Continue playing</span>
-          <span className="hero-when">Played {agoText(when)}</span>
-        </div>
-        <h3>{game.name}</h3>
-        <div className="hero-row">
-          {lead && lead.state === 'ready' && <button className="btn primary hero-btn" onClick={onPlay}><Icon code="E768" /> {lead.label}</button>}
-          <button className="btn hero-btn" onClick={onOpen}>Open</button>
-        </div>
-      </div>
     </section>
   )
 }
 
 // Every online game's open rooms, with Join.
-function RoomsPage({ lib, onJoin }: { lib: Library; onJoin: (g: Game, code: string) => void }) {
+function RoomsPage({ lib, onJoin, onOpen }: { lib: Library; onJoin: (g: Game, code: string) => void; onOpen: (g: Game) => void }) {
   const online = useMemo(() => lib.games.filter((g) => g.onlineId && !g.comingSoon), [lib])
   const [rooms, setRooms] = useState<{ game: Game; room: Room }[] | null>(null)
   const [error, setError] = useState('')
@@ -148,19 +97,32 @@ function RoomsPage({ lib, onJoin }: { lib: Library; onJoin: (g: Game, code: stri
     }
   }, [online])
   return (
-    <div className="rooms-page">
-      <h2>Open rooms</h2>
-      {!rooms && <p className="muted">Asking the central server...</p>}
-      {rooms?.length === 0 && <p className="muted">{error || 'No open rooms right now. Host one from a game\'s page and friends see it here.'}</p>}
-      <div className="room-list">
+    <div className="page">
+      <div className="head">
+        <div>
+          <h1>Open rooms</h1>
+          <p>Rooms people are hosting on the central server right now. Join one, or host your own from a game's page.</p>
+        </div>
+      </div>
+      {!rooms && <div className="loading">Asking the central server...</div>}
+      {rooms?.length === 0 && (
+        <div className="empty">
+          <Radio size={40} />
+          <h2>No open rooms right now</h2>
+          <p>{error || 'Host one from a game\'s page and it shows up here for everyone.'}</p>
+        </div>
+      )}
+      <div className="rows">
         {rooms?.map(({ game, room }) => (
-          <div className="room" key={game.id + room.code}>
-            <div className="room-art"><Cover game={game} className="fill" /></div>
-            <div className="room-text">
-              <strong>{room.name || game.name}</strong>
-              <span className="muted">{game.name}  {room.code}  {room.players}/{room.max} players</span>
+          <div className="row-card" key={game.id + room.code}>
+            <button className="th" onClick={() => onOpen(game)} aria-label={game.name}><Cover game={game} className="fill" /></button>
+            <div className="k">
+              <b>{room.name || game.name}</b>
+              <small>{game.name}</small>
             </div>
-            <button className="btn center" disabled={room.players >= room.max} onClick={() => onJoin(game, room.code)}>{room.players >= room.max ? 'Full' : 'Join'}</button>
+            <span className="tag cy">{room.code}</span>
+            <span className="num"><b>{room.players} of {room.max}</b><small>players</small></span>
+            <button className="btn sm" disabled={room.players >= room.max} onClick={() => onJoin(game, room.code)}>{room.players >= room.max ? 'Full' : 'Join'}</button>
           </div>
         ))}
       </div>
@@ -168,36 +130,20 @@ function RoomsPage({ lib, onJoin }: { lib: Library; onJoin: (g: Game, code: stri
   )
 }
 
-const VIEWS = [
-  { id: 'favorites', name: 'Favorites' },
-  { id: 'ready', name: 'Ready to play' },
-  { id: 'soon', name: 'Coming soon' },
-]
-type Sort = 'ours' | 'recent' | 'name' | 'players'
-const SORTS: { id: Sort; name: string }[] = [
-  { id: 'ours', name: 'Our order' },
-  { id: 'recent', name: 'Recently played' },
-  { id: 'name', name: 'Name' },
-  { id: 'players', name: 'Most players' },
-]
-
-function Hint({ k, label }: { k: string; label: string }) {
-  return <span className="hint"><kbd>{k}</kbd>{label}</span>
-}
-
-interface Notice { text: string; kind: 'ok' | 'error' | 'info' }
-
 export default function App() {
   const [lib, setLib] = useState<Library | null>(null)
   const [loadError, setLoadError] = useState('')
   const [mods, setMods] = useState<Record<string, ModInfo> | null>(null)
-  const [top, setTop] = useState<'library' | 'rooms'>('library')
-  const [view, setView] = useState<string>('flash')
+  const [view, setView] = useState<View>('home')
+  const [from, setFrom] = useState<View>('home')
+  const [gameId, setGameId] = useState('')
+  const [anim, setAnim] = useState('enter')
+  const [cat, setCat] = useState('all')
   const [sort, setSort] = useState<Sort>('ours')
-  const [compact, setCompact] = useState(false)
+  const [favOnly, setFavOnly] = useState(false)
+  const [readyOnly, setReadyOnly] = useState(false)
   const [query, setQuery] = useState('')
-  const [page, setPage] = useState<string | null>(null)
-  const [dir, setDir] = useState<'in' | 'out'>('in')
+  const [mini, setMini] = useState(false)
   const [favs, setFavs] = useState<Set<string>>(new Set())
   // Games started from here whose launcher is still running (a host keeps it up until the game closes).
   const [playing, setPlaying] = useState<Map<number, string>>(new Map())
@@ -207,9 +153,8 @@ export default function App() {
   // Hosting with the built-in relay, per game: the launcher session and what it last reported.
   const [hosting, setHosting] = useState<Record<string, { session: number; relay: RelayStatus }>>({})
   const [downloading, setDownloading] = useState<Set<string>>(new Set())
-  // Pages over the library: Settings, or a game's lobby.
-  const [overlay, setOverlay] = useState<{ kind: 'settings' } | { kind: 'lobby'; game: string } | null>(null)
   const search = useRef<HTMLInputElement>(null)
+  const main = useRef<HTMLElement>(null)
 
   const say = useCallback((text: string, kind: Notice['kind'] = 'info') => setNotice({ text, kind }), [])
 
@@ -293,7 +238,7 @@ export default function App() {
         })
         .catch((e) => say(String(e), 'error'))
     },
-    openLobby: (game) => setOverlay({ kind: 'lobby', game: game.id }),
+    openLobby: (game) => go('lobby', game.id),
     stopHosting: (session) => {
       stopSession(session)
         .then(() => {
@@ -351,18 +296,23 @@ export default function App() {
     },
   }
 
-  const open = (id: string) => {
-    setDir('in')
-    setPage(id)
+  // Going somewhere draws the page fresh with its entrance; a game page rises, going back eases in from the left.
+  function go(v: View, id = '') {
+    if (v === 'game' || v === 'lobby') {
+      if (view !== 'game' && view !== 'lobby') setFrom(view)
+      setGameId(id)
+      setAnim(v === 'game' ? 'enter-game' : 'enter')
+    } else setAnim('enter')
+    setView(v)
+    main.current?.scrollTo({ top: 0 })
   }
   const back = () => {
-    if (!page) return
-    setDir('out')
-    setPage(null)
+    if (view !== 'game' && view !== 'lobby') return
+    setAnim('enter-back')
+    setView(view === 'lobby' ? 'game' : from)
   }
   const focusSearch = () => {
-    if (page) back()
-    setTop('library')
+    go('library')
     requestAnimationFrame(() => search.current?.focus())
   }
   const toggleFav = (id: string) => {
@@ -376,14 +326,19 @@ export default function App() {
     setFavorite(id, on).catch((e) => say(String(e), 'error'))
   }
 
-  const pad = usePad({ back, search: focusSearch, prevTab: () => setTop('library'), nextTab: () => setTop('rooms') })
+  const SECTIONS: View[] = ['home', 'library', 'rooms']
+  const step = (d: number) => {
+    const i = SECTIONS.indexOf(view)
+    go(SECTIONS[(Math.max(0, i) + d + SECTIONS.length) % SECTIONS.length])
+  }
+  const pad = usePad({ back, search: focusSearch, prevTab: () => step(-1), nextTab: () => step(1) })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
         focusSearch()
-      } else if (e.key === 'Escape' && page && !(e.target instanceof HTMLInputElement)) back()
+      } else if (e.key === 'Escape' && !(e.target instanceof HTMLInputElement)) back()
       else if (e.key === 'F5') {
         e.preventDefault()
         refresh()
@@ -396,28 +351,19 @@ export default function App() {
 
   const playingIds = useMemo(() => new Set(playing.values()), [playing])
 
-  const inView = useCallback(
-    (g: Game, v: string) => {
-      if (!lib) return false
-      if (v === 'favorites') return favs.has(g.id)
-      if (v === 'ready') return ['ready', 'installed', 'update'].includes(statusOf(g, lib, mods, false).kind)
-      if (v === 'soon') return g.comingSoon
-      return g.categories.includes(v) && !g.comingSoon
-    },
-    [lib, mods, favs],
-  )
-
-  const viewOptions = useMemo(() => {
+  const catOptions = useMemo(() => {
     if (!lib) return []
-    const platform = lib.categories.filter((c) => c.group === 'platform')
-    const rest = lib.categories.filter((c) => c.group !== 'platform')
-    return [...platform, ...VIEWS, ...rest].map((c) => ({ id: c.id, name: `${c.name} (${lib.games.filter((g) => inView(g, c.id)).length})` }))
-  }, [lib, inView])
+    const count = (id: string) => lib.games.filter((g) => g.categories.includes(id)).length
+    return [{ id: 'all', name: 'All' }, ...lib.categories.filter((c) => count(c.id) > 0).map((c) => ({ id: c.id, name: c.name }))]
+  }, [lib])
 
   const shown = useMemo(() => {
     if (!lib) return []
     const q = query.trim().toLowerCase()
-    const list = lib.games.filter((g) => inView(g, view) && (!q || g.name.toLowerCase().includes(q)))
+    const ready = (g: Game) => ['ready', 'installed', 'update'].includes(statusOf(g, lib, mods, false).kind)
+    const list = lib.games.filter((g) =>
+      (cat === 'all' || g.categories.includes(cat)) && (!favOnly || favs.has(g.id)) && (!readyOnly || ready(g)) &&
+      (!q || g.name.toLowerCase().includes(q) || g.description.toLowerCase().includes(q) || (g.mod?.gameName ?? '').toLowerCase().includes(q)))
     const order = new Map(lib.games.map((g, i) => [g.id, i]))
     const key: Record<Sort, (g: Game) => number | string> = {
       ours: (g) => order.get(g.id) ?? 0,
@@ -430,130 +376,192 @@ export default function App() {
       const y = key[sort](b)
       return x < y ? -1 : x > y ? 1 : (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
     })
-  }, [lib, view, query, sort, inView])
+  }, [lib, mods, cat, favOnly, readyOnly, favs, query, sort])
 
   if (!lib) {
     return (
-      <div className="loading">
+      <div className="boot">
         {loadError ? (
           <>
             <h2>The library couldn't be read</h2>
             <p>{loadError}</p>
-            <button className="btn center" onClick={() => { setLoadError(''); refresh() }}>Try again</button>
+            <button className="btn main" onClick={() => { setLoadError(''); refresh() }}>Try again</button>
           </>
         ) : (
-          <p className="muted">Reading the library...</p>
+          <p>Reading the library...</p>
         )}
       </div>
     )
   }
 
-  const recent = lib.games.filter((g) => !g.comingSoon && lastPlayed(lib, g.id) > 0).sort((a, b) => lastPlayed(lib, b.id) - lastPlayed(lib, a.id))[0]
-  const hero = !query && top === 'library' ? recent : undefined
-  const pageGame = page ? lib.games.find((g) => g.id === page) : undefined
   const playLead = (g: Game) => {
     const a = leadAction(g)
     if (a) actions.run(g, a)
   }
+  const tileOf = (g: Game) => (
+    <Tile key={g.id} game={g} lib={lib} mods={mods} playing={playingIds.has(g.id)} favorite={favs.has(g.id)}
+      onOpen={() => go('game', g.id)} onPlay={() => playLead(g)} />
+  )
 
-  const hints = pad
-    ? pageGame
-      ? [['A', 'Press'], ['D-pad', 'Move'], ['B', 'Back']]
-      : [['A', 'Open'], ['D-pad', 'Move'], ['Y', 'Search'], ['LB / RB', 'Library, Rooms']]
-    : pageGame
-      ? [['Esc', 'Back'], ['Tab', 'Next control']]
-      : [['Enter', 'Open'], ['Ctrl+F', 'Search'], ['F5', 'Refresh']]
-  const ruffle = lib.players.find((p) => p.id === 'ruffle') ?? lib.players[0]
-  const playingNow = [...playingIds].map((id) => lib.games.find((g) => g.id === id)?.name).filter(Boolean)
+  const playable = lib.games.filter((g) => !g.comingSoon)
+  const recent = playable.filter((g) => lastPlayed(lib, g.id) > 0).sort((a, b) => lastPlayed(lib, b.id) - lastPlayed(lib, a.id))
+  const featured = [...new Set([...recent.slice(0, 2), ...playable.filter((g) => g.image), ...playable])].slice(0, 5)
+  const together = playable.filter((g) => g.onlineId || isCoop(g))
+  const pcMods = playable.filter((g) => g.mod)
+  const soon = lib.games.filter((g) => g.comingSoon)
+  const pins = lib.games.filter((g) => favs.has(g.id))
+  const pageGame = lib.games.find((g) => g.id === gameId)
+  const words = lib.branding.title.split(' ')
+  const side = view === 'game' || view === 'lobby' ? (pins.some((p) => p.id === gameId) ? '' : from) : view
+
+  const nav = (v: View, label: string, icon: ReactNode, n?: number) => (
+    <button className={`nav ${side === v ? 'on' : ''}`} onClick={() => go(v)} title={mini ? label : undefined} aria-current={side === v ? 'page' : undefined}>
+      {icon}<span className="lbl">{label}</span>{n ? <span className="n">{n}</span> : null}
+    </button>
+  )
+
+  let page: ReactNode
+  if (view === 'settings') {
+    page = (
+      <SettingsPage lib={lib} onChanged={(s) => {
+        setLib((l) => (l ? { ...l, user: { ...l.user, ...s } } : l))
+        if ('gamesDir' in s || 'defaultPlayer' in s) refresh()  // file states depend on these
+      }} />
+    )
+  } else if (view === 'lobby' && pageGame) {
+    page = <LobbyPage game={pageGame} lib={lib} onClose={back} />
+  } else if (view === 'game' && pageGame) {
+    page = (
+      <GamePage key={pageGame.id} game={pageGame} lib={lib} mods={mods} playing={playingIds.has(pageGame.id)}
+        modLine={modLines[pageGame.id]} downloading={downloading.has(pageGame.id)} hosting={hosting[pageGame.id]}
+        favorite={favs.has(pageGame.id)} onFavorite={() => toggleFav(pageGame.id)} onBack={back} actions={actions} />
+    )
+  } else if (view === 'rooms') {
+    page = <RoomsPage lib={lib} onOpen={(g) => go('game', g.id)} onJoin={(g, code) => { const a = joinByCode(g); if (a) actions.run(g, a, code) }} />
+  } else if (view === 'library') {
+    page = (
+      <div className="page">
+        <div className="dhead">
+          <h1>Library</h1>
+          <p>{lib.branding.subtitle || 'Every game here plays with friends.'}</p>
+          <label className="bigsearch">
+            <Search size={20} />
+            <input ref={search} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games and mods" spellCheck={false} />
+            {query && <button className="clear" aria-label="Clear the search" onClick={() => setQuery('')}><X size={16} /></button>}
+          </label>
+        </div>
+        <div className="dctl">
+          <Seg label="Order" value={sort} options={SORTS} onChange={setSort} />
+          <Picker label="Show" value={cat} options={catOptions} onChange={setCat} />
+          <Toggle label="Favorites" on={favOnly} onChange={setFavOnly} icon={<Star size={15} />} />
+          <Toggle label="Ready to play" on={readyOnly} onChange={setReadyOnly} icon={<span className="live-dot" />} />
+        </div>
+        <div className="count-line">{shown.length === 1 ? '1 game' : `${shown.length} games`}</div>
+        {shown.length ? (
+          <div className="grid">{shown.map(tileOf)}</div>
+        ) : (
+          <div className="empty">
+            <Gamepad2 size={40} />
+            <h2>Nothing matches</h2>
+            <p>{favOnly && !favs.size ? 'No favorites yet. Open a game and press the star.' : 'Try another search, or turn a filter off.'}</p>
+          </div>
+        )}
+      </div>
+    )
+  } else {
+    page = (
+      <div className="page">
+        <Slider games={featured} lib={lib} onOpen={(g) => go('game', g.id)} onPlay={playLead} />
+        {recent.length > 0 && <Shelf title="Jump back in" count={recent.length}>{recent.map(tileOf)}</Shelf>}
+        {together.length > 0 && (
+          <Shelf title="Play together online" note="Host a room and friends join with its code. No port forwarding." count={together.length} onSeeAll={() => go('library')}>
+            {together.map(tileOf)}
+          </Shelf>
+        )}
+        {pcMods.length > 0 && <Shelf title="PC game mods" note="Installed into your own copy of the game, and taken back out just as cleanly." count={pcMods.length}>{pcMods.map(tileOf)}</Shelf>}
+        {soon.length > 0 && <Shelf title="Coming soon" count={soon.length}>{soon.map(tileOf)}</Shelf>}
+      </div>
+    )
+  }
+
+  const playingNow = [...playingIds].map((id) => lib.games.find((g) => g.id === id)).filter((g): g is Game => !!g)
+  const jobs = Object.entries(modLines).map(([id, line]) => ({ game: lib.games.find((g) => g.id === id), line })).filter((j) => j.game)
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">{lib.branding.title}</div>
-        <nav className="toptabs" role="tablist">
-          {(['library', 'rooms'] as const).map((t) => (
-            <button key={t} role="tab" aria-selected={top === t && !pageGame} className={`toptab ${top === t ? 'on' : ''}`}
-              onClick={() => { back(); setOverlay(null); setTop(t) }}>
-              {t === 'library' ? 'Library' : 'Rooms'}
+    <div id="app">
+      <aside className={`side ${mini ? 'mini' : ''}`}>
+        <div className="brand">
+          <button id="brand" onClick={() => go('home')} aria-label={lib.branding.title}>
+            <span className="word lbl">{words[0]}<b>{words.slice(1).join(' ')}</b></span>
+          </button>
+        </div>
+        <nav className="navs">
+          {nav('home', 'Home', <Home size={20} />)}
+          {nav('library', 'Library', <LayoutGrid size={20} />, lib.games.length)}
+          {nav('rooms', 'Open rooms', <Radio size={20} />)}
+        </nav>
+        {pins.length > 0 && <div className="pins-h"><span className="lbl">Favorites</span></div>}
+        <div className="pins">
+          {pins.map((g) => (
+            <button key={g.id} className={`pin ${view === 'game' && gameId === g.id ? 'on' : ''}`} onClick={() => go('game', g.id)} title={mini ? g.name : undefined}>
+              <span className="th"><Cover game={g} className="fill" />{playingIds.has(g.id) && <span className="run" />}</span>
+              <span className="lbl">{g.name}</span>
             </button>
           ))}
-        </nav>
-        <div className="grow" />
-        <button className="ghost" onClick={() => setOverlay({ kind: 'settings' })}><Icon code="E713" /> Settings</button>
-      </header>
+        </div>
+        <div className="side-foot">
+          <button className="nav" onClick={() => go('settings')} title={mini ? 'Your name' : undefined}>
+            <span className="avatar">{(lib.user.playerName || '?').slice(0, 1).toUpperCase()}</span>
+            <span className="lbl">{lib.user.playerName || 'Set your name'}</span>
+          </button>
+          {nav('settings', 'Settings', <Cog size={20} />)}
+          <button className="nav" onClick={() => setMini(!mini)} aria-label={mini ? 'Expand the sidebar' : 'Collapse the sidebar'}>
+            <PanelLeft size={20} /><span className="lbl">Collapse</span>
+          </button>
+        </div>
+      </aside>
 
-      <main className="body">
-        {overlay?.kind === 'settings' ? (
-          <div className="library">
-            <SettingsPage
-              lib={lib}
-              onClose={() => setOverlay(null)}
-              onChanged={(s) => {
-                setLib((l) => (l ? { ...l, user: { ...l.user, ...s } } : l))
-                if ('gamesDir' in s || 'defaultPlayer' in s) refresh()  // file states depend on these
-              }}
-            />
-          </div>
-        ) : overlay?.kind === 'lobby' && lib.games.some((g) => g.id === overlay.game) ? (
-          <div className="library">
-            <LobbyPage game={lib.games.find((g) => g.id === overlay.game)!} lib={lib} onClose={() => setOverlay(null)} />
-          </div>
-        ) : pageGame ? (
-          <GamePage
-            key={pageGame.id}
-            game={pageGame}
-            lib={lib}
-            mods={mods}
-            playing={playingIds.has(pageGame.id)}
-            modLine={modLines[pageGame.id]}
-            downloading={downloading.has(pageGame.id)}
-            hosting={hosting[pageGame.id]}
-            favorite={favs.has(pageGame.id)}
-            onFavorite={() => toggleFav(pageGame.id)}
-            onBack={back}
-            dir={dir}
-            actions={actions}
-          />
-        ) : top === 'rooms' ? (
-          <div className={`library enter-${dir === 'in' ? 'right' : 'left'}`} key="rooms">
-            <RoomsPage lib={lib} onJoin={(g, code) => { const a = joinByCode(g); if (a) actions.run(g, a, code) }} />
-          </div>
-        ) : (
-          <div className={`library enter-${dir === 'in' ? 'right' : 'left'}`} key="library">
-            {hero && <Hero game={hero} when={lastPlayed(lib, hero.id)} onOpen={() => open(hero.id)} onPlay={() => playLead(hero)} />}
-            <div className="toolbar">
-              <ChipMenu label="Show" value={view} options={viewOptions} onChange={setView} />
-              <label className="search">
-                <Icon code="E721" />
-                <input ref={search} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games  (Ctrl+F)" />
-              </label>
-              <ChipMenu label="Order" value={sort} options={SORTS} onChange={setSort} />
-              <button className="chip-btn" onClick={() => setCompact(!compact)} aria-pressed={compact}>
-                <Icon code="E8A9" /> {compact ? 'Larger' : 'Compact'}
-              </button>
+      <div className="mainwrap">
+        <div className="topbar" data-tauri-drag-region>
+          {live && (
+            <div className="win">
+              <button aria-label="Minimize" onClick={() => windowControl('minimize')}><Minus size={16} /></button>
+              <button aria-label="Maximize" onClick={() => windowControl('maximize')}><Square size={13} /></button>
+              <button className="close" aria-label="Close" onClick={() => windowControl('close')}><X size={17} /></button>
             </div>
-            <div className={`grid ${compact ? 'compact' : ''}`}>
-              {shown.map((g) => (
-                <Card key={g.id} game={g} lib={lib} mods={mods} playing={playingIds.has(g.id)} favorite={favs.has(g.id)}
-                  onOpen={() => open(g.id)} onPlay={() => playLead(g)} />
-              ))}
-              {shown.length === 0 && <div className="empty">{view === 'favorites' ? 'No favorites yet. Press Favorite on a game.' : 'No games match.'}</div>}
-            </div>
+          )}
+        </div>
+        <main ref={main} className={anim} key={`${view}:${gameId}`}>
+          {page}
+        </main>
+        {pad && view !== 'game' && (
+          <div className="padbar" aria-hidden="true">
+            <span><kbd>A</kbd>Select</span><span><kbd>B</kbd>Back</span><span><kbd>Y</kbd>Search</span><span><kbd>LB</kbd>+<kbd>RB</kbd>Sections</span>
           </div>
         )}
-        {notice && <div className={`toast ${notice.kind}`} role="status">{notice.text}</div>}
-      </main>
+      </div>
 
-      <footer className="status">
-        {playingNow.length > 0 ? (
-          <span className="playing"><span className="dot live" /> Playing {playingNow.join(', ')}</span>
-        ) : (
-          hints.map(([k, label]) => <Hint key={k} k={k} label={label} />)
+      <div className="island" aria-live="polite">
+        {jobs.map(({ game, line }) => (
+          <div className="isl" key={game!.id}>
+            <span className="th"><Cover game={game!} className="fill" /></span>
+            <span className="k"><b>{game!.name}</b><small>{line}</small></span>
+            <span className="ln busy" />
+          </div>
+        ))}
+        {playingNow.map((g) => (
+          <button className="isl" key={g.id} onClick={() => go('game', g.id)}>
+            <span className="th"><Cover game={g} className="fill" /></span>
+            <span className="k"><b>{hosting[g.id] ? `Hosting ${g.name}` : `Playing ${g.name}`}</b><small>{hosting[g.id] ? `${hosting[g.id].relay.peers.filter((p) => !p.host).length} joined` : 'The launcher keeps watch until it closes'}</small></span>
+            {hosting[g.id] && <Users size={18} className="pc" />}
+          </button>
+        ))}
+        {notice && (
+          <div className={`isl note ${notice.kind}`} role="status">
+            <span className="k"><b>{notice.text}</b></span>
+          </div>
         )}
-        <span className="grow" />
-        {ruffle && (<>{ruffle.name} <span className={ruffle.found ? 'ok' : 'warn'}>{ruffle.found ? '✓' : 'missing'}</span></>)}
-        <span className="sep" /> {live ? `Player name: ${lib.user.playerName || 'not set'}` : 'Sample data (browser)'}
-      </footer>
+      </div>
     </div>
   )
 }

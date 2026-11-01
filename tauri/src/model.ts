@@ -89,4 +89,7 @@ export function leadAction(g: Game): Action | undefined {
 export const fileAction = (g: Game): Action | undefined =>
   g.actions.find((a) => a.id === g.joinAction && plain(a)) ?? g.actions.find((a) => plain(a) && !a.original)
 
-export const platformBadge = (g: Game) => (g.mod ? 'PC' : g.categories.includes('flash') ? 'Flash' : '')
+// "2-4 players (one keyboard)" without the note in brackets, for tight places.
+export const playersShort = (g: Game) => g.players.replace(/ \(.*\)$/, '')
+
+export const platformBadge =(g: Game) => (g.mod ? 'PC' : g.categories.includes('flash') ? 'Flash' : '')

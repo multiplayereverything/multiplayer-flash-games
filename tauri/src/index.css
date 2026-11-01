@@ -1,44 +1,58 @@
-/* Our palette (src/core/config.cpp darkPalette), as tokens. Colors come only from here. */
+/* The C++ launcher's palette (src/core/config.cpp darkPalette) and fonts, as tokens: red only for starting a game,
+   light blue for keyboard focus and online, green for ready. Colors come only from here. */
 :root {
   --bg: #0b1119;
-  --surface: #141b26;
-  --surface-hover: #1f2835;
-  --sidebar: #070c13;
-  --text: #e6ebf2;
-  --text-muted: #93a0b3;
-  --bar-muted: #8e9bae;
-  --border: #253041;
-  --primary: #c8313a;
-  --primary-hover: #b42a33;
-  --on-primary: #fff;
-  --focus: #38bdf8;
-  --success: #3ccb7f;
-  --warning: #f2b544;
-
-  --r-card: 12px;
-  --r-btn: 8px;
+  --bg2: #070c13;
+  --side: #070c13;
+  --card: #141b26;
+  --card2: #1f2835;
+  --card3: #253041;
+  --ink: #e6ebf2;
+  --muted: #93a0b3;
+  --dim: #8e9bae;
+  --accent: #c8313a;
+  --accent-hover: #b42a33;
+  --on-accent: #fff;
+  --online: #38bdf8;
+  --on-online: #06121c;
+  --ok: #3ccb7f;
+  --warn: #f2b544;
+  --bad: #ff7a7a;
+  --line: #1c2533;
+  --line2: #253041;
+  --line3: #34425a;
+  --fill: rgba(230, 235, 242, .03);
+  --fill2: #1f2835;
+  --fill3: #283345;
+  --glass: rgba(7, 12, 19, .62);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --side-w: 236px;
   --font-title: Bahnschrift, 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --font-body: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-  --font-icon: 'Segoe Fluent Icons', 'Segoe MDL2 Assets';
 
   color-scheme: dark;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--text);
+  font: 400 14.5px/1.5 var(--font-body);
+  color: var(--ink);
   background: var(--bg);
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body, #root { height: 100%; margin: 0; }
-body { overflow: hidden; background: var(--bg); }
-button, input { font: inherit; color: inherit; }
-button { border: 0; background: none; cursor: pointer; }
-a { color: inherit; text-decoration: none; }
-h2, p { margin: 0; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+body { overflow: hidden; background: var(--bg); user-select: none; cursor: default; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: pointer; padding: 0; }
+a { color: var(--online); text-decoration: none; }
+h1, h2, h3, h4, p { margin: 0; }
+h1, h2, h3 { font-family: var(--font-title); line-height: 1.15; }
+h1 { font-size: 34px; font-weight: 700; }
+h2 { font-size: 22px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+:focus-visible { outline: 2px solid var(--online); outline-offset: 2px; }
+input:focus-visible, select:focus-visible { outline: 0; }
 
-* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after { animation-duration: .01s !important; transition-duration: .01s !important; }
 }

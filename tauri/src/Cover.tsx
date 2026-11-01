@@ -1,12 +1,19 @@
+import { useState } from 'react'
 import { GLYPH_H, GLYPH_W, glyph, initials } from './pixelFont'
 import type { Game } from './api'
 
 // Cover art: the game's picture when it has one, otherwise the initials in the pixel font on its colors.
-export function Cover({ game, className }: { game: Game; className?: string }) {
+// `tall` is for poster frames: a picture much wider than the frame shows whole over a blurred copy of itself,
+// instead of losing two thirds of it to the crop.
+export function Cover({ game, className, tall }: { game: Game; className?: string; tall?: boolean }) {
+  const [wide, setWide] = useState(false)
   if (game.image) {
+    const pos = { objectPosition: `50% ${(game.imageFocus ?? 0.5) * 100}%` }
     return (
-      <div className={`cover ${className ?? ''}`}>
-        <img src={game.image} alt="" style={{ objectPosition: `50% ${(game.imageFocus ?? 0.5) * 100}%` }} draggable={false} />
+      <div className={`cover ${wide ? 'wide' : ''} ${className ?? ''}`}>
+        {wide && <img className="cover-blur" src={game.image} alt="" draggable={false} />}
+        <img src={game.image} alt="" style={pos} draggable={false}
+          onLoad={(e) => tall && setWide(e.currentTarget.naturalWidth > e.currentTarget.naturalHeight * 1.15)} />
       </div>
     )
   }
@@ -24,7 +31,7 @@ export function Cover({ game, className }: { game: Game; className?: string }) {
   return (
     <div
       className={`cover cover-pixel ${className ?? ''}`}
-      style={{ background: `linear-gradient(135deg, ${game.color ?? '#3a3f4b'}, ${game.colorEnd ?? '#1a1d24'})` }}
+      style={{ background: `linear-gradient(160deg, ${game.color ?? '#3a3f4b'}, ${game.colorEnd ?? '#1a1d24'})` }}
     >
       <svg viewBox={`-2 -2 ${width + 4} ${GLYPH_H + 4}`} shapeRendering="crispEdges" aria-hidden="true">
         {cells.map(([x, y]) => (

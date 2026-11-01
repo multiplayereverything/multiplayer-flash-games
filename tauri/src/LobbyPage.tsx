@@ -1,9 +1,11 @@
 // A game's lobby: host or join a room, see who is in it, chat, get ready, and the host starts; the C++ launcher runs
 // the room (--lobby-session) and opens the game for each player when it starts.
 import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Copy, Send } from 'lucide-react'
 import {
   copyText, lobbySend, lobbyStart, onLobby, type Game, type Library, type LobbyRequest, type LobbySnapshot,
 } from './api'
+import { Seg, Switch } from './ui'
 
 export function LobbyPage({ game, lib, onClose }: { game: Game; lib: Library; onClose: () => void }) {
   const t = (k: string, fallback: string, vars: Record<string, string> = {}) =>
@@ -21,6 +23,7 @@ export function LobbyPage({ game, lib, onClose }: { game: Game; lib: Library; on
   const [target, setTarget] = useState('')
   const [chat, setChat] = useState('')
   const chatEnd = useRef<HTMLDivElement>(null)
+  const colors = lib.branding.playerColors
 
   useEffect(() => {
     const off = onLobby((e) => {
@@ -73,111 +76,109 @@ export function LobbyPage({ game, lib, onClose }: { game: Game; lib: Library; on
   const everyoneReady = !!room && room.players.filter((p) => p.connected && !p.host).every((p) => p.ready) && room.players.length > 1
 
   return (
-    <div className="lobby enter-right">
-      <div className="settings-head">
-        <h2>{t('lobby.title', 'Play ${GAME} online', { GAME: game.name })}</h2>
-        <button className="btn quiet" onClick={() => { if (open) void lobbySend({ op: 'leave' }); onClose() }}>{open ? 'Leave room' : 'Back'}</button>
+    <div className="page narrow">
+      <div><button className="btn glass" onClick={() => { if (open) void lobbySend({ op: 'leave' }); onClose() }}><ArrowLeft size={17} />{open ? 'Leave room' : 'Back'}</button></div>
+      <div className="head">
+        <div>
+          <h1>{t('lobby.title', 'Play ${GAME} online', { GAME: game.name })}</h1>
+          {t('lobby.subtitle', '') && <p>{t('lobby.subtitle', '')}</p>}
+        </div>
       </div>
 
       {!open && (
         <>
-          <p className="muted">{t('lobby.subtitle', '')}</p>
-          <div className="tabs lobby-tabs" role="tablist">
-            {(['host', 'join'] as const).map((k) => (
-              <button key={k} role="tab" aria-selected={tab === k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
-                {k === 'host' ? t('lobby.hostHead', 'Host a room') : t('lobby.joinHead', 'Join a room')}
-              </button>
-            ))}
-          </div>
-          <section className="card-panel settings-group">
-            <label className="check-row">
-              <input type="checkbox" checked={direct} onChange={(e) => setDirect(e.target.checked)} />
-              <span>{t('lobby.direct', 'Direct IP (Radmin VPN, ZeroTier, LAN) instead of the server')}</span>
-            </label>
+          <Seg label="Host or join" value={tab} onChange={setTab}
+            options={[{ id: 'host', name: t('lobby.hostHead', 'Host a room') }, { id: 'join', name: t('lobby.joinHead', 'Join a room') }]} />
+          <div className="card set-list">
+            <div className="set-row">
+              <div className="k"><b>{t('lobby.direct', 'Direct IP (Radmin VPN, ZeroTier, LAN) instead of the server')}</b></div>
+              <div className="acts"><Switch on={direct} label="Direct IP" onChange={setDirect} /></div>
+            </div>
             {tab === 'host' ? (
               <>
-                <label className="field"><span>{t('lobby.roomName', 'Room name')}</span><input value={roomName} maxLength={40} onChange={(e) => setRoomName(e.target.value)} /></label>
-                <label className="field inline">
-                  <span>{t('lobby.players', 'Players')}</span>
-                  <select value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
-                    {Array.from({ length: Math.max(1, (game.maxPlayers || 4) - 1) }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </label>
+                <div className="set-row"><div className="k"><b>{t('lobby.roomName', 'Room name')}</b></div><div className="acts"><input className="field" value={roomName} maxLength={40} onChange={(e) => setRoomName(e.target.value)} /></div></div>
+                <div className="set-row">
+                  <div className="k"><b>{t('lobby.players', 'Players')}</b></div>
+                  <div className="acts">
+                    <select className="sel" value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
+                      {Array.from({ length: Math.max(1, (game.maxPlayers || 4) - 1) }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                </div>
                 {!direct && (
-                  <label className="check-row"><input type="checkbox" checked={isPublic} onChange={(e) => setPublic(e.target.checked)} /><span>{t('lobby.public', 'List it in Open rooms')}</span></label>
+                  <div className="set-row"><div className="k"><b>{t('lobby.public', 'List it in Open rooms')}</b></div><div className="acts"><Switch on={isPublic} label="Public" onChange={setPublic} /></div></div>
                 )}
-                <label className="field"><span>{t('lobby.password', 'Password (optional)')}</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+                <div className="set-row"><div className="k"><b>{t('lobby.password', 'Password (optional)')}</b></div><div className="acts"><input className="field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div></div>
                 {direct && (
-                  <label className="field inline"><span>{t('lobby.port', 'Port')}</span><input type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} /></label>
+                  <div className="set-row"><div className="k"><b>{t('lobby.port', 'Port')}</b></div><div className="acts"><input className="field short" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} /></div></div>
                 )}
-                <div className="button-row"><button className="btn center primary" onClick={host}>{t('lobby.host', 'Host room')}</button></div>
               </>
             ) : (
               <>
-                <label className="field">
-                  <span>{direct ? t('lobby.address', "Host's address") : t('lobby.code', 'Room code')}</span>
-                  <input value={target} onChange={(e) => setTarget(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && join()} placeholder={direct ? '192.168.1.20:7790' : 'ABCDE'} spellCheck={false} />
-                </label>
-                <label className="field"><span>{t('lobby.joinPassword', 'Password, if it has one')}</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-                <div className="button-row"><button className="btn center primary" onClick={join}>Join room</button></div>
+                <div className="set-row">
+                  <div className="k"><b>{direct ? t('lobby.address', "Host's address") : t('lobby.code', 'Room code')}</b></div>
+                  <div className="acts"><input className="field" value={target} onChange={(e) => setTarget(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && join()} placeholder={direct ? '192.168.1.20:7790' : 'ABCDE'} spellCheck={false} /></div>
+                </div>
+                <div className="set-row"><div className="k"><b>{t('lobby.joinPassword', 'Password, if it has one')}</b></div><div className="acts"><input className="field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div></div>
               </>
             )}
-          </section>
+          </div>
+          <div className="acts">
+            {tab === 'host'
+              ? <button className="btn main big" onClick={host}>{t('lobby.host', 'Host room')}</button>
+              : <button className="btn main big" onClick={join}>Join room</button>}
+          </div>
         </>
       )}
 
-      {open && !room && <p className="muted">Connecting...</p>}
+      {open && !room && <div className="loading">Connecting...</div>}
 
       {room && (
         <div className="lobby-room">
-          <section className="card-panel">
+          <div className="card">
             <div className="room-head">
               <div>
-                <span className="kicker">{room.direct ? 'Direct IP' : 'Room code'}</span>
+                <span className="kick">{room.direct ? 'Direct IP' : 'Room code'}</span>
                 <div className="room-code">{room.code || '...'}</div>
-                <span className="muted">{room.roomName}{room.reconnecting ? '  (reconnecting...)' : ''}</span>
+                <small className="muted">{room.roomName}{room.reconnecting ? '  (reconnecting...)' : ''}</small>
               </div>
-              {room.code && <button className="btn quiet" onClick={() => copyText(room.code).then(() => setNote('Copied.'))}>Copy</button>}
+              {room.code && <button className="btn sm" onClick={() => copyText(room.code).then(() => setNote('Copied.'))}><Copy size={15} />Copy</button>}
             </div>
             <div className="lobby-slots">
               {Array.from({ length: room.maxPlayers }, (_, slot) => {
                 const p = room.players.find((x) => x.slot === slot)
                 return (
-                  <div key={slot} className={`lobby-slot ${p ? 'taken' : 'open'}`} style={{ ['--p' as string]: lib.branding.playerColors[slot % lib.branding.playerColors.length] }}>
+                  <div key={slot} className={`lobby-slot ${p ? 'taken' : 'open'}`} style={{ ['--p' as string]: colors[slot % colors.length] }}>
                     <span className="slot-tag">P{slot + 1}</span>
                     <span className="slot-name">{p ? `${p.name}${p.you ? ' (you)' : ''}` : 'Open'}</span>
                     {p && <span className={`slot-state ${p.ready || p.host ? 'ready' : ''}`}>{p.host ? 'Host' : !p.connected ? 'Dropped' : p.ready ? 'Ready' : 'Not ready'}{p.ping >= 0 ? `  ${p.ping} ms` : ''}</span>}
-                    {p && room.host && !p.you && (
-                      <button className="btn quiet kick" onClick={() => lobbySend({ op: 'kick', slot, ban: false })}>Kick</button>
-                    )}
+                    {p && room.host && !p.you && <button className="btn sm" onClick={() => lobbySend({ op: 'kick', slot, ban: false })}>Kick</button>}
                   </div>
                 )
               })}
             </div>
-            <div className="button-row">
+            <div className="acts">
               {room.host ? (
-                <button className="btn center primary" disabled={!everyoneReady || room.phase !== 'lobby'} onClick={() => lobbySend({ op: 'start' })}>
-                  {t('lobby.start', 'Start game')}
-                </button>
+                <button className="btn main big" disabled={!everyoneReady || room.phase !== 'lobby'} onClick={() => lobbySend({ op: 'start' })}>{t('lobby.start', 'Start game')}</button>
               ) : (
-                <button className={`btn center ${me?.ready ? '' : 'primary'}`} disabled={room.phase !== 'lobby'} onClick={() => lobbySend({ op: 'ready', v: !me?.ready })}>
+                <button className={`btn big ${me?.ready ? '' : 'main'}`} disabled={room.phase !== 'lobby'} onClick={() => lobbySend({ op: 'ready', v: !me?.ready })}>
                   {me?.ready ? 'Not ready' : t('lobby.ready', 'Ready')}
                 </button>
               )}
             </div>
-          </section>
-          <section className="card-panel lobby-chat">
+          </div>
+          <div className="card lobby-chat">
             <div className="chat-lines">
               {room.chat.map((c, i) => (
-                <div key={i} className={c.slot < 0 ? 'chat-system' : ''}>{c.slot >= 0 && <strong>{c.name}: </strong>}{c.text}</div>
+                <div key={i} className={c.slot < 0 ? 'chat-system' : ''}>{c.slot >= 0 && <b style={{ color: colors[c.slot % colors.length] }}>{c.name}: </b>}{c.text}</div>
               ))}
               <div ref={chatEnd} />
             </div>
             <div className="chat-input">
-              <input value={chat} maxLength={200} placeholder="Say something" onChange={(e) => setChat(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
-              <button className="btn quiet" onClick={send}>Send</button>
+              <input className="field" value={chat} maxLength={200} placeholder="Say something" onChange={(e) => setChat(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
+              <button className="btn sm icon" aria-label="Send" onClick={send}><Send size={15} /></button>
             </div>
-          </section>
+          </div>
         </div>
       )}
       {note && <p className="lobby-note">{note}</p>}

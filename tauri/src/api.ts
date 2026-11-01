@@ -151,6 +151,16 @@ export async function minimizeWindow(): Promise<void> {
   await getCurrentWindow().minimize()
 }
 
+// The window draws its own title bar, so its three buttons call these.
+export async function windowControl(what: 'minimize' | 'maximize' | 'close'): Promise<void> {
+  if (!live) return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const w = getCurrentWindow()
+  if (what === 'minimize') await w.minimize()
+  else if (what === 'maximize') await w.toggleMaximize()
+  else await w.close()
+}
+
 // The lobby: the C++ launcher runs the room (--lobby-session); the window sends commands and draws what it prints.
 export type LobbyRequest =
   | { op: 'host'; direct: boolean; roomName: string; password: string; public: boolean; maxPlayers: number; port: number }

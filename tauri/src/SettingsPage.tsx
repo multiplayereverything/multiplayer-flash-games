@@ -1,9 +1,20 @@
 // Settings, as the C++ Settings window has them: each change is saved at once to the launcher's own settings.json,
 // so both windows agree.
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { ExternalLink, FolderOpen } from 'lucide-react'
 import { open, pickFolder, setSetting, type Library, type Settings } from './api'
+import { Switch } from './ui'
 
-export function SettingsPage({ lib, onChanged, onClose }: { lib: Library; onChanged: (s: Partial<Settings>) => void; onClose: () => void }) {
+function Row({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  return (
+    <div className="set-row">
+      <div className="k"><b>{title}</b>{note && <small>{note}</small>}</div>
+      <div className="acts">{children}</div>
+    </div>
+  )
+}
+
+export function SettingsPage({ lib, onChanged }: { lib: Library; onChanged: (s: Partial<Settings>) => void }) {
   const t = (k: string, fallback: string) => (lib.text[k] ?? fallback).replace('${VERSION}', lib.launcherVersion).replace(/…|…/g, '...')
   const u = lib.user
   const [name, setName] = useState(u.playerName)
@@ -15,11 +26,8 @@ export function SettingsPage({ lib, onChanged, onClose }: { lib: Library; onChan
       .then(() => onChanged({ [key]: value }))
       .catch((e) => setError(String(e)))
   }
-  const check = (key: 'minimize' | 'online' | 'showOffline' | 'showOriginals' | 'autoUpdate', label: string) => (
-    <label className="check-row">
-      <input type="checkbox" checked={u[key]} onChange={(e) => save(key, e.target.checked)} />
-      <span>{label}</span>
-    </label>
+  const sw = (key: 'minimize' | 'online' | 'showOffline' | 'showOriginals' | 'autoUpdate', label: string, note?: string) => (
+    <Row title={label} note={note}><Switch on={u[key]} label={label} onChange={(v) => save(key, v)} /></Row>
   )
   const commitName = () => {
     const v = name.trim()
@@ -29,58 +37,60 @@ export function SettingsPage({ lib, onChanged, onClose }: { lib: Library; onChan
   const logDir = lib.logFile.replace(/[\\/][^\\/]*$/, '')
 
   return (
-    <div className="settings enter-right">
-      <div className="settings-head">
-        <h2>{t('settings.title', 'Settings')}</h2>
-        <button className="btn quiet" onClick={onClose}>{t('settings.close', 'Close')}</button>
+    <div className="page narrow">
+      <div className="head">
+        <div>
+          <h1>{t('settings.title', 'Settings')}</h1>
+          <p>Changes save straight away, and the classic launcher sees them too.</p>
+        </div>
       </div>
 
-      <section className="card-panel settings-group">
-        <h4>{t('settings.playing', 'Playing')}</h4>
-        {check('minimize', t('settings.minimize', 'Minimize the launcher while a game runs'))}
-        <label className="field inline">
-          <span>{t('settings.player', 'Default player')}</span>
-          <select value={u.defaultPlayer} onChange={(e) => save('defaultPlayer', e.target.value)}>
-            <option value="">Automatic</option>
-            {lib.players.map((p) => <option key={p.id} value={p.id}>{p.name}{p.found ? '' : '  (not found)'}</option>)}
-          </select>
-        </label>
-        {check('showOffline', t('settings.offline', 'Show offline play (solo and one keyboard)'))}
-        {check('showOriginals', t('settings.originals', 'Show the original versions of modded games'))}
-      </section>
-
-      <section className="card-panel settings-group">
-        <h4>{t('settings.online', 'Online')}</h4>
-        {check('online', t('settings.onlineToggle', 'Show open rooms and check for game updates'))}
-        <p className="muted small">{t('settings.onlineNote', '')}</p>
-        {check('autoUpdate', t('settings.autoUpdate', 'Update the launcher automatically'))}
-        <label className="field">
-          <span>{t('settings.name', 'Your name')}</span>
-          <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} onBlur={commitName} onKeyDown={(e) => e.key === 'Enter' && commitName()} />
-        </label>
-        <p className="muted small">{t('settings.nameNote', '')}</p>
-      </section>
-
-      <section className="card-panel settings-group">
-        <h4>{t('settings.folders', 'Folders')}</h4>
-        <div className="folder-row">
-          <span className="folder-label">{t('settings.gamesDir', 'Game files')}</span>
-          <span className="folder-path" title={gamesDir}>{gamesDir}</span>
-        </div>
-        <div className="button-row">
-          <button className="btn quiet" onClick={async () => {
-            const dir = await pickFolder(t('settings.pickFolder', 'Choose the folder for game files'), gamesDir)
-            if (dir) save('gamesDir', dir)
-          }}>{t('settings.change', 'Change...')}</button>
-          <button className="btn quiet" disabled={!gamesDir} onClick={() => open(gamesDir).catch((e) => setError(String(e)))}>{t('settings.open', 'Open')}</button>
-          <button className="btn quiet" disabled={!u.gamesDir} onClick={() => save('gamesDir', '')}>{t('settings.reset', 'Use default')}</button>
-          <button className="btn quiet" disabled={!logDir} onClick={() => open(logDir).catch((e) => setError(String(e)))}>{t('settings.log', 'Open log folder')}</button>
+      <section className="set-group">
+        <h2>{t('settings.playing', 'Playing')}</h2>
+        <div className="card set-list">
+          {sw('minimize', t('settings.minimize', 'Minimize the launcher while a game runs'))}
+          <Row title={t('settings.player', 'Default player')}>
+            <select className="sel" value={u.defaultPlayer} onChange={(e) => save('defaultPlayer', e.target.value)}>
+              <option value="">Automatic</option>
+              {lib.players.map((p) => <option key={p.id} value={p.id}>{p.name}{p.found ? '' : '  (not found)'}</option>)}
+            </select>
+          </Row>
+          {sw('showOffline', t('settings.offline', 'Show offline play (solo and one keyboard)'))}
+          {sw('showOriginals', t('settings.originals', 'Show the original versions of modded games'))}
         </div>
       </section>
 
-      <div className="settings-foot">
-        <span className="muted">{t('settings.about', 'Multiplayer Everything Launcher')}</span>
-        {lib.website && <button className="btn quiet" onClick={() => open(lib.website)}>{t('settings.github', 'Project page')}</button>}
+      <section className="set-group">
+        <h2>{t('settings.online', 'Online')}</h2>
+        <div className="card set-list">
+          <Row title={t('settings.name', 'Your name')} note={t('settings.nameNote', '') || undefined}>
+            <input className="field" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} onBlur={commitName} onKeyDown={(e) => e.key === 'Enter' && commitName()} />
+          </Row>
+          {sw('online', t('settings.onlineToggle', 'Show open rooms and check for game updates'), t('settings.onlineNote', '') || undefined)}
+          {sw('autoUpdate', t('settings.autoUpdate', 'Update the launcher automatically'))}
+        </div>
+      </section>
+
+      <section className="set-group">
+        <h2>{t('settings.folders', 'Folders')}</h2>
+        <div className="card set-list">
+          <Row title={t('settings.gamesDir', 'Game files')} note={gamesDir}>
+            <button className="btn sm" onClick={async () => {
+              const dir = await pickFolder(t('settings.pickFolder', 'Choose the folder for game files'), gamesDir)
+              if (dir) save('gamesDir', dir)
+            }}>{t('settings.change', 'Change...')}</button>
+            <button className="btn sm icon" aria-label={t('settings.open', 'Open')} title={t('settings.open', 'Open')} disabled={!gamesDir} onClick={() => open(gamesDir).catch((e) => setError(String(e)))}><FolderOpen size={16} /></button>
+            <button className="btn sm" disabled={!u.gamesDir} onClick={() => save('gamesDir', '')}>{t('settings.reset', 'Use default')}</button>
+          </Row>
+          <Row title={t('settings.log', 'Open log folder')} note={logDir}>
+            <button className="btn sm icon" aria-label={t('settings.log', 'Open log folder')} disabled={!logDir} onClick={() => open(logDir).catch((e) => setError(String(e)))}><FolderOpen size={16} /></button>
+          </Row>
+        </div>
+      </section>
+
+      <div className="set-foot">
+        <span>{t('settings.about', 'Multiplayer Everything Launcher')}</span>
+        {lib.website && <button className="linkbtn" onClick={() => open(lib.website)}><ExternalLink size={14} />{t('settings.github', 'Project page')}</button>}
       </div>
       {error && <p className="error-text">{error}</p>}
     </div>
