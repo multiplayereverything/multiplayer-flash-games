@@ -44,6 +44,17 @@ export interface Game {
   mod?: { modName: string; publisher: string; website: string; gameName: string; pinnedVersion: string }
   guide: { needs: string[]; steps: string[]; tips: string[]; links: { label: string; url: string }[] }
   actions: Action[]
+  // What the website's games.json says (grade A-D or X, version, what stays in sync), when it knows the game.
+  site?: SiteInfo
+}
+
+export interface SiteInfo {
+  status: string
+  quality: string
+  version: string
+  updated: string
+  connect: string
+  synced: Record<string, 'synced' | 'partly' | 'unknown'>
 }
 
 export interface Category { id: string; name: string; icon: string; group: string }
@@ -63,6 +74,7 @@ export interface Settings {
 export interface Library {
   branding: { title: string; subtitle: string; playerColors: string[] }
   dataDir: string
+  flashpoint: string
   gamesDir: string
   defaultGamesDir: string
   launcherVersion: string
@@ -227,7 +239,7 @@ function sampleLibrary(): Library {
   })
   return {
     branding: { ...s.branding, playerColors: ['#E5484D', '#3E7BFA', '#2EBD6B', '#F5B83D', '#E5484D', '#3E7BFA'] },
-    dataDir: '', gamesDir: '', defaultGamesDir: '', launcherVersion: 'sample', website: '', logFile: '',
+    dataDir: '', flashpoint: '', gamesDir: '', defaultGamesDir: '', launcherVersion: 'sample', website: '', logFile: '',
     players: [{ id: 'ruffle', name: 'Ruffle Together', found: true, installable: true }],
     categories: s.categories,
     games: s.games.map((g) => ({

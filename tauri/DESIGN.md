@@ -1,42 +1,41 @@
 # The prototype's look
 
-The layout follows RecompLauncher (github.com/elripalda/RecompLauncher, GPL-3.0). We took its ideas, not
-its code: nothing here is copied from it, so our license is unaffected. The colors, fonts and buttons are
-our own launcher's, from `src/core/config.cpp` in the C++ launcher.
+The window looks like the released C++ launcher: the same palette, fonts, sidebar, cards, details panel and
+status bar. A few page ideas come from RecompLauncher (github.com/elripalda/RecompLauncher, GPL-3.0). We took
+its ideas, not its code: nothing here is copied from it, so our license is unaffected.
 
-## Taken from RecompLauncher's layout
+## From the C++ launcher (as released, commit 14b4552)
 
-- A sidebar: Home, Library and Open rooms, favorites pinned underneath with their art, then your name,
-  Settings and Collapse at the foot.
-- The window draws its own title bar, and pages scroll beneath it.
-- Home: a banner that rotates through a few games (dots and arrows, pauses under the mouse). Under it are
-  shelves (Jump back in, Play together online, PC game mods, Coming soon) that page sideways.
-- Library: a centered title and a large search box. One row holds the sort order, the category picker and
-  two switches (Favorites, Ready to play). The count sits above a grid of box-art tiles.
-- Tiles: art with the name and the player pips under it. On hover, a tile lifts over a glow of its own art
-  and a round Play appears.
-- Game page:
-  - A wide art header that fades into a blurred copy of itself.
-  - The cover, title and Play side by side, with one or two big buttons, a star and a "..." menu.
-  - Tabs on a sliding pill.
-  - Four stat boxes (Played, Last played, Players, a fourth that depends on the game).
-  - At the right, a "Ready to play" checklist that ticks off what the game needs.
-- Messages, running games and mod jobs float in an "island" at the bottom center.
+- **Palette:** `darkPalette` in `src/core/config.cpp`:
+  - Background `#15171C`, panels `#1E2128` and `#272B34`, sidebar `#0E1014`.
+  - Text `#E8EAED` and `#9AA1AC`, borders `#323743`.
+  - Light blue `#8FB0FF` for focus and online, green `#3CCB7F` for ready, red `#C8313A` only for starting a game.
+- **Fonts:** 10pt Segoe UI for text. Bahnschrift SemiBold for headings and buttons, and Bahnschrift SemiBold
+  Condensed for names and titles.
+- **Sidebar:** the title and subtitle, then each category with its Fluent icon and count, in the C++ order:
+  platforms first, then Favorites, Ready to play, Rooms, Coming soon, then the rest. Settings sits at the foot.
+- **Cards** (`drawCard`):
+  - 16:9 art on top. Online and PC badges at its top left; the website's grade chip (A-D, X) at its top right.
+  - Under the art: the name in the condensed font, the player pips and count, and the state ("Ready" in green).
+  - Hovering lifts a card 3px. The selected card has a white outline.
+- **Details panel:**
+  - The P1-P4 slots with their colors along the top, and the state pill.
+  - The website's block: the grade and what it means, the version line, and the "In sync" dots.
+  - The buttons as `drawButton` paints them: 6px corners, red Host a game, two-line buttons with a second line
+    under the label, and the Favorite / Guide / Folder row.
+- **Tabs:** the chosen one is underlined.
+- **Status bar:** the key hints, Server online, Ruffle Together, and the Flashpoint folder.
+- **Page change:** a 28px slide with a fade over 260 ms.
 
-## Ours (unchanged from the C++ launcher)
+## From RecompLauncher's layout
 
-- **Palette:**
-  - Background `#0B1119`, panels `#141B26` and `#1F2835`, sidebar `#070C13`.
-  - Text `#E6EBF2` and `#93A0B3`.
-  - Borders `#253041`.
-- **Fonts:** Bahnschrift for titles and buttons, Segoe UI for body text.
-- **What each color means:**
-  - Red `#C8313A` means start (Play, Host, Install).
-  - Light blue `#38BDF8` means keyboard focus and online.
-  - Green means ready.
-  - Selection is a neutral outline.
-- **Buttons:** 6px corners with a 1px border, as `drawButton` paints them.
-- **Avoided:** all-caps labels and invented logos.
-- **Covers:** our own pixel-font initials on the game's colors. A picture wider than a poster shows whole,
-  over a blurred copy of itself.
-- **Player slots:** the P1-P6 slots in `branding.playerColors` remain the one bold element.
+- Home: a banner that rotates through a few games, and shelves that page sideways (Jump back in, Play together
+  online, PC game mods, Coming soon).
+- The game page's wide art header, which fades into a blurred copy of itself, with four stat boxes.
+- Messages, running games and mod jobs float in an "island" above the status bar.
+- The window draws its own title bar.
+
+## Data
+
+The grade, version and sync dots come from `--list --json`. Each game now carries a `site` object, read from the
+website's games.json that the C++ launcher caches.

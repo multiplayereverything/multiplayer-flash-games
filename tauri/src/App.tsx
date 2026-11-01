@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ChevronLeft, ChevronRight, Gamepad2, Home, LayoutGrid, Minus, PanelLeft, Play, Radio, Search, Settings as Cog,
-  Square, Star, Users, X,
+  ChevronLeft, ChevronRight, Gamepad2, Minus, PanelLeft, Play, Radio, Search,
+  Square, Users, X,
 } from 'lucide-react'
 import { Cover } from './Cover'
 import { GamePage, type PageActions } from './GamePage'
@@ -13,7 +13,7 @@ import {
   type Game, type Library, type ModInfo, type RelayStatus, type Room,
 } from './api'
 import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
-import { Picker, Pips, Seg, Shelf, Tile, Toggle } from './ui'
+import { Glyph, Pips, Seg, Shelf, Tile } from './ui'
 import { usePad } from './usePad'
 import './App.css'
 
@@ -140,8 +140,8 @@ export default function App() {
   const [anim, setAnim] = useState('enter')
   const [cat, setCat] = useState('all')
   const [sort, setSort] = useState<Sort>('ours')
-  const [favOnly, setFavOnly] = useState(false)
-  const [readyOnly, setReadyOnly] = useState(false)
+  // The central server, as the C++ status bar shows it: asked once through a game's room list.
+  const [server, setServer] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown')
   const [query, setQuery] = useState('')
   const [mini, setMini] = useState(false)
   const [favs, setFavs] = useState<Set<string>>(new Set())
@@ -173,6 +173,24 @@ export default function App() {
     refresh()
     refreshMods()
   }, [refresh, refreshMods])
+
+  const probe = lib?.user.online ? lib.games.find((g) => g.onlineId && !g.comingSoon)?.id : undefined
+  useEffect(() => {
+    if (!probe) return
+    let alive = true
+    const ask = () => {
+      setServer((s) => (s === 'unknown' ? 'checking' : s))
+      loadRooms(probe)
+        .then((r) => alive && setServer(r.onServer || !r.error ? 'online' : 'offline'))
+        .catch(() => alive && setServer('offline'))
+    }
+    ask()
+    const id = window.setInterval(ask, 60000)
+    return () => {
+      alive = false
+      window.clearInterval(id)
+    }
+  }, [probe])
 
   useEffect(() => {
     const a = onLaunchEnded((e) => {
@@ -351,18 +369,26 @@ export default function App() {
 
   const playingIds = useMemo(() => new Set(playing.values()), [playing])
 
-  const catOptions = useMemo(() => {
+  const isReady = useCallback((g: Game) => !!lib && ['ready', 'installed', 'update'].includes(statusOf(g, lib, mods, false).kind), [lib, mods])
+  const inCat = useCallback(
+    (g: Game, id: string) =>
+      id === 'all' || (id === 'favorites' ? favs.has(g.id) : id === 'ready' ? !g.comingSoon && isReady(g) : id === 'soon' ? g.comingSoon : g.categories.includes(id) && !g.comingSoon),
+    [favs, isReady],
+  )
+  // In the C++ sidebar's order: the platforms, then Favorites, Ready to play, Rooms and Coming soon, then the rest.
+  const sideList = useMemo(() => {
     if (!lib) return []
-    const count = (id: string) => lib.games.filter((g) => g.categories.includes(id)).length
-    return [{ id: 'all', name: 'All' }, ...lib.categories.filter((c) => count(c.id) > 0).map((c) => ({ id: c.id, name: c.name }))]
-  }, [lib])
+    const row = (id: string, name: string, icon: string) => ({ id, name, icon, n: lib.games.filter((g) => inCat(g, id)).length })
+    const platform = lib.categories.filter((c) => c.group === 'platform').map((c) => row(c.id, c.name, c.icon))
+    const rest = lib.categories.filter((c) => c.group !== 'platform').map((c) => row(c.id, c.name, c.icon))
+    return [...platform, row('favorites', 'Favorites', 'E734'), row('ready', 'Ready to play', 'E768'), { id: 'rooms', name: 'Rooms', icon: 'E716', n: -1 },
+      row('soon', 'Coming soon', 'E823'), ...rest]
+  }, [lib, inCat])
 
   const shown = useMemo(() => {
     if (!lib) return []
     const q = query.trim().toLowerCase()
-    const ready = (g: Game) => ['ready', 'installed', 'update'].includes(statusOf(g, lib, mods, false).kind)
-    const list = lib.games.filter((g) =>
-      (cat === 'all' || g.categories.includes(cat)) && (!favOnly || favs.has(g.id)) && (!readyOnly || ready(g)) &&
+    const list = lib.games.filter((g) => inCat(g, cat) &&
       (!q || g.name.toLowerCase().includes(q) || g.description.toLowerCase().includes(q) || (g.mod?.gameName ?? '').toLowerCase().includes(q)))
     const order = new Map(lib.games.map((g, i) => [g.id, i]))
     const key: Record<Sort, (g: Game) => number | string> = {
@@ -376,7 +402,7 @@ export default function App() {
       const y = key[sort](b)
       return x < y ? -1 : x > y ? 1 : (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
     })
-  }, [lib, mods, cat, favOnly, readyOnly, favs, query, sort])
+  }, [lib, cat, query, sort, inCat])
 
   if (!lib) {
     return (
@@ -400,7 +426,7 @@ export default function App() {
   }
   const tileOf = (g: Game) => (
     <Tile key={g.id} game={g} lib={lib} mods={mods} playing={playingIds.has(g.id)} favorite={favs.has(g.id)}
-      onOpen={() => go('game', g.id)} onPlay={() => playLead(g)} />
+      selected={g.id === gameId} onOpen={() => go('game', g.id)} />
   )
 
   const playable = lib.games.filter((g) => !g.comingSoon)
@@ -409,16 +435,10 @@ export default function App() {
   const together = playable.filter((g) => g.onlineId || isCoop(g))
   const pcMods = playable.filter((g) => g.mod)
   const soon = lib.games.filter((g) => g.comingSoon)
-  const pins = lib.games.filter((g) => favs.has(g.id))
   const pageGame = lib.games.find((g) => g.id === gameId)
-  const words = lib.branding.title.split(' ')
-  const side = view === 'game' || view === 'lobby' ? (pins.some((p) => p.id === gameId) ? '' : from) : view
-
-  const nav = (v: View, label: string, icon: ReactNode, n?: number) => (
-    <button className={`nav ${side === v ? 'on' : ''}`} onClick={() => go(v)} title={mini ? label : undefined} aria-current={side === v ? 'page' : undefined}>
-      {icon}<span className="lbl">{label}</span>{n ? <span className="n">{n}</span> : null}
-    </button>
-  )
+  const side = view === 'game' || view === 'lobby' ? from : view
+  const catName = cat === 'all' ? 'All games' : sideList.find((c) => c.id === cat)?.name ?? 'Library'
+  const ruffle = lib.players.find((p) => p.id === 'ruffle') ?? lib.players[0]
 
   let page: ReactNode
   if (view === 'settings') {
@@ -442,7 +462,7 @@ export default function App() {
     page = (
       <div className="page">
         <div className="dhead">
-          <h1>Library</h1>
+          <h1>{catName}</h1>
           <p>{lib.branding.subtitle || 'Every game here plays with friends.'}</p>
           <label className="bigsearch">
             <Search size={20} />
@@ -452,9 +472,6 @@ export default function App() {
         </div>
         <div className="dctl">
           <Seg label="Order" value={sort} options={SORTS} onChange={setSort} />
-          <Picker label="Show" value={cat} options={catOptions} onChange={setCat} />
-          <Toggle label="Favorites" on={favOnly} onChange={setFavOnly} icon={<Star size={15} />} />
-          <Toggle label="Ready to play" on={readyOnly} onChange={setReadyOnly} icon={<span className="live-dot" />} />
         </div>
         <div className="count-line">{shown.length === 1 ? '1 game' : `${shown.length} games`}</div>
         {shown.length ? (
@@ -463,7 +480,7 @@ export default function App() {
           <div className="empty">
             <Gamepad2 size={40} />
             <h2>Nothing matches</h2>
-            <p>{favOnly && !favs.size ? 'No favorites yet. Open a game and press the star.' : 'Try another search, or turn a filter off.'}</p>
+            <p>{cat === 'favorites' && !favs.size ? 'No favorites yet. Open a game and press the star.' : 'Try another search, or turn a filter off.'}</p>
           </div>
         )}
       </div>
@@ -491,32 +508,33 @@ export default function App() {
     <div id="app">
       <aside className={`side ${mini ? 'mini' : ''}`}>
         <div className="brand">
-          <button id="brand" onClick={() => go('home')} aria-label={lib.branding.title}>
-            <span className="word lbl">{words[0]}<b>{words.slice(1).join(' ')}</b></span>
+          <button id="brand" onClick={() => go('home')}>
+            <span className="word lbl"><b>{lib.branding.title}</b><small>{lib.branding.subtitle}</small></span>
           </button>
         </div>
         <nav className="navs">
-          {nav('home', 'Home', <Home size={20} />)}
-          {nav('library', 'Library', <LayoutGrid size={20} />, lib.games.length)}
-          {nav('rooms', 'Open rooms', <Radio size={20} />)}
-        </nav>
-        {pins.length > 0 && <div className="pins-h"><span className="lbl">Favorites</span></div>}
-        <div className="pins">
-          {pins.map((g) => (
-            <button key={g.id} className={`pin ${view === 'game' && gameId === g.id ? 'on' : ''}`} onClick={() => go('game', g.id)} title={mini ? g.name : undefined}>
-              <span className="th"><Cover game={g} className="fill" />{playingIds.has(g.id) && <span className="run" />}</span>
-              <span className="lbl">{g.name}</span>
-            </button>
-          ))}
-        </div>
-        <div className="side-foot">
-          <button className="nav" onClick={() => go('settings')} title={mini ? 'Your name' : undefined}>
-            <span className="avatar">{(lib.user.playerName || '?').slice(0, 1).toUpperCase()}</span>
-            <span className="lbl">{lib.user.playerName || 'Set your name'}</span>
+          <button className={`nav ${side === 'home' ? 'on' : ''}`} onClick={() => go('home')} title={mini ? 'Home' : undefined}>
+            <Glyph code="E80F" /><span className="lbl">Home</span>
           </button>
-          {nav('settings', 'Settings', <Cog size={20} />)}
-          <button className="nav" onClick={() => setMini(!mini)} aria-label={mini ? 'Expand the sidebar' : 'Collapse the sidebar'}>
-            <PanelLeft size={20} /><span className="lbl">Collapse</span>
+          <button className={`nav ${side === 'library' && cat === 'all' ? 'on' : ''}`} onClick={() => { setCat('all'); go('library') }} title={mini ? 'All games' : undefined}>
+            <Glyph code="E8A9" /><span className="lbl">All games</span><span className="n">{lib.games.length}</span>
+          </button>
+          {sideList.map((c) => {
+            const on = c.id === 'rooms' ? side === 'rooms' : side === 'library' && cat === c.id
+            return (
+              <button key={c.id} className={`nav ${on ? 'on' : ''}`} title={mini ? c.name : undefined} aria-current={on ? 'page' : undefined}
+                onClick={() => { if (c.id === 'rooms') go('rooms'); else { setCat(c.id); go('library') } }}>
+                <Glyph code={c.icon} /><span className="lbl">{c.name}</span>{c.n >= 0 && <span className="n">{c.n}</span>}
+              </button>
+            )
+          })}
+        </nav>
+        <div className="side-foot">
+          <button className={`setbtn ${side === 'settings' ? 'on' : ''}`} onClick={() => go('settings')}>
+            <Glyph code="E713" /><span className="lbl">Settings</span>
+          </button>
+          <button className="minibtn" onClick={() => setMini(!mini)} aria-label={mini ? 'Expand the sidebar' : 'Collapse the sidebar'} title={mini ? 'Expand' : 'Collapse'}>
+            <PanelLeft size={17} />
           </button>
         </div>
       </aside>
@@ -534,11 +552,18 @@ export default function App() {
         <main ref={main} className={anim} key={`${view}:${gameId}`}>
           {page}
         </main>
-        {pad && view !== 'game' && (
-          <div className="padbar" aria-hidden="true">
-            <span><kbd>A</kbd>Select</span><span><kbd>B</kbd>Back</span><span><kbd>Y</kbd>Search</span><span><kbd>LB</kbd>+<kbd>RB</kbd>Sections</span>
-          </div>
-        )}
+        <footer className="statusbar">
+          <span className="hints">
+            {(pad ? [['A', 'Select'], ['B', 'Back'], ['Y', 'Search'], ['LB/RB', 'Sections']] : [['Enter', 'Open'], ['Ctrl+F', 'Search'], ['Esc', 'Back']])
+              .map(([k, l]) => <span key={k}><kbd>{k}</kbd>{l}</span>)}
+          </span>
+          <span className="grow" />
+          {server !== 'unknown' && (
+            <span className={`srv ${server}`}><i />{server === 'online' ? 'Server online' : server === 'checking' ? 'Checking the server...' : 'Server offline'}</span>
+          )}
+          {ruffle && <span>{ruffle.name} {ruffle.found ? '\u2713' : <span className="tone-warn">missing</span>}</span>}
+          {lib.flashpoint && <span>Flashpoint: {lib.flashpoint}</span>}
+        </footer>
       </div>
 
       <div className="island" aria-live="polite">

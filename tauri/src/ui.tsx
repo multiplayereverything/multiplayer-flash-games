@@ -1,9 +1,9 @@
 // The pieces every page uses: box-art tiles, shelves that page sideways, pickers, switches and a menu.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Globe, Play, Star } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Cover } from './Cover'
 import type { Game, Library, ModInfo } from './api'
-import { leadAction, playersShort, statusOf } from './model'
+import { statusOf } from './model'
 
 export function Pips({ n, colors }: { n: number; colors: string[] }) {
   return (
@@ -20,32 +20,128 @@ interface TileProps {
   playing: boolean
   favorite: boolean
   onOpen: () => void
-  onPlay: () => void
 }
 
-// Box art with the name under it. Hovering lifts it over a glow of its own colors and shows a round Play.
-export function Tile({ game, lib, mods, playing, favorite, onOpen, onPlay }: TileProps) {
+// A glyph from Segoe Fluent Icons, as launcher.json and the C++ window name them: the character or its hex code.
+export function Glyph({ code, className }: { code: string; className?: string }) {
+  if (!code) return null
+  const ch = /^[0-9A-F]{4}$/i.test(code) ? String.fromCodePoint(parseInt(code, 16)) : code
+  return <i className={`glyph ${className ?? ''}`} aria-hidden="true">{ch}</i>
+}
+
+// The website's quality grade: a rounded square with the letter, in the grade's color.
+export function GradeChip({ grade, size = 22 }: { grade: string; size?: number }) {
+  const known = /^[ABCDX]$/.test(grade)
+  return (
+    <span className={`grade ${known ? 'g-' + grade.toLowerCase() : 'unrated'}`} style={{ width: size, height: size }} aria-label={known ? `Quality ${grade}` : 'Not rated yet'}>
+      {known ? grade : '?'}
+    </span>
+  )
+}
+
+// What the card's last line says and in which color, as the C++ card's stateText.
+export function stateLine(game: Game, lib: Library, mods: Record<string, ModInfo> | null, playing: boolean): { text: string; tone: string } {
   const st = statusOf(game, lib, mods, playing)
-  const lead = leadAction(game)
-  const corner = playing ? 'Playing' : st.kind === 'update' ? 'Update' : st.kind === 'soon' ? 'Soon' : ''
-  const glow = game.image ? { backgroundImage: `url("${game.image}")` } : { background: `linear-gradient(160deg, ${game.color}, ${game.colorEnd})` }
+  const tone = st.kind === 'ready' || st.kind === 'installed' ? 'ok' : st.kind === 'playing' ? 'online' : st.kind === 'soon' || st.kind === 'checking' ? 'muted' : 'warn'
+  return { text: st.text, tone }
+}
+
+// A card as the C++ library draws one: the art across the top with its badges, then the name in the condensed
+// display font, the player pips and count, and the state. The selected card has a white outline.
+export function Tile({ game, lib, mods, playing, favorite, selected, onOpen }: TileProps & { selected?: boolean }) {
+  const line = stateLine(game, lib, mods, playing)
+  const t = (k: string, f: string) => lib.text[k] ?? f
+  const notOnServer = game.site?.status === 'not-on-server'
   return (
     <div className="tile">
-      <span className="glow" style={glow} />
-      <button className="tile-b" onClick={onOpen} aria-label={`${game.name}, ${game.players}`}>
-        <span className="poster">
-          <Cover game={game} className="fill" tall />
-          {game.mod ? <span className="badge tl">PC mod</span> : game.onlineId ? <span className="badge tl"><Globe size={12} />Online</span> : null}
-          {corner && <span className={`badge tr ${st.kind === 'soon' ? 'soon' : ''}`}>{corner}</span>}
-          {favorite && <span className="badge fav" aria-label="Favorite"><Star size={12} fill="currentColor" /></span>}
+      <button className={`card-c ${selected ? 'sel' : ''}`} onClick={onOpen} aria-label={`${game.name}, ${game.players}, ${line.text}`}
+        style={{ ['--gc' as string]: game.color || '#323743' }}>
+        <span className="art">
+          <Cover game={game} className="fill" />
+          <span className="badges">
+            {game.onlineId && <span className="badge">{t('badge.online', 'Online')}</span>}
+            {game.mod && <span className="badge">{t('badge.pc', 'PC')}</span>}
+          </span>
+          <span className="badges right">
+            {favorite && <span className="badge star">{'★'}</span>}
+            {game.site?.quality && <GradeChip grade={game.site.quality} />}
+          </span>
         </span>
-        <span className="t">{game.name}</span>
-        <span className="s"><Pips n={game.maxPlayers} colors={lib.branding.playerColors} /><span>{playersShort(game)}</span></span>
+        <span className="info">
+          <span className="name">{game.name}</span>
+          <span className="ppl"><Pips n={game.maxPlayers} colors={lib.branding.playerColors} /><span>{game.players}</span></span>
+          <span className="st">
+            <span className={`tone-${line.tone}`}>{line.text}</span>
+            {notOnServer && <span className="tone-muted right">{t('status.notOnServer', 'Not on the server yet')}</span>}
+          </span>
+        </span>
       </button>
-      {lead?.state === 'ready' && !game.comingSoon && (
-        <span className="qpw"><button className="qp" aria-label={`${lead.label}: ${game.name}`} onClick={onPlay}><Play size={18} fill="currentColor" /></button></span>
+    </div>
+  )
+}
+
+// The player slots strip of the details panel: P1 to Pn, each with its color along the top.
+export function Slots({ n, colors, names }: { n: number; colors: string[]; names?: string[] }) {
+  return (
+    <div className="pstrip" aria-label={`${n} player slots`}>
+      {Array.from({ length: Math.min(6, Math.max(1, n)) }, (_, i) => (
+        <span key={i} className={`pslot ${names?.[i] ? 'filled' : ''}`} style={{ ['--p' as string]: colors[i % colors.length] }}>
+          {names?.[i] ?? `P${i + 1}`}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+const SYNCED_KEYS = ['see', 'story', 'enemies', 'world', 'items']
+
+// The website's block in the details panel: the grade and what it means, the facts line, and what stays in sync.
+export function SiteBlock({ game, lib }: { game: Game; lib: Library }) {
+  const s = game.site
+  if (!s || (!s.status && !s.quality)) return null
+  const t = (k: string, f = '', vars: Record<string, string> = {}) =>
+    Object.entries(vars).reduce((x, [key, v]) => x.replace('${' + key + '}', v), lib.text[k] ?? f)
+  const soon = game.comingSoon
+  const graded = !!s.quality && !!lib.text['site.quality.' + s.quality]
+  const note = soon ? t('site.planned') : graded ? t('site.quality.' + s.quality) : t('site.unrated')
+  const facts = [
+    t('site.status.' + (soon ? 'coming-soon' : s.status)),
+    s.version && !soon ? t(s.status === 'testing' ? 'site.testBuild' : 'site.version', '', { VERSION: s.version }) : '',
+    s.updated && !soon ? t('site.updated', '', { DATE: s.updated }) : '',
+    s.connect,
+  ].filter(Boolean).join(', ')
+  const synced = SYNCED_KEYS.some((k) => s.synced[k] && s.synced[k] !== 'unknown')
+  return (
+    <div className="siteblock">
+      <div className="grade-row"><GradeChip grade={graded ? s.quality : ''} size={24} /><span>{note}</span></div>
+      {facts && <p className="facts">{facts}</p>}
+      {synced && (
+        <div className="synced">
+          <span className="muted">{t('site.synced', 'In sync')}</span>
+          {SYNCED_KEYS.map((k) => {
+            const state = s.synced[k] ?? 'unknown'
+            return (
+              <span key={k} className={`sync ${state}`} title={t('site.synced.' + state)}>
+                <i />{t('site.synced.' + k, k)}
+              </span>
+            )
+          })}
+        </div>
       )}
     </div>
+  )
+}
+
+// A button as the C++ details panel paints one: Bahnschrift on the raised surface, a glyph before the label, and
+// a second line under it when there is one. Red only when it starts the game.
+export function PanelButton({ icon, label, sub, primary, warn, disabled, onClick }: {
+  icon?: string; label: string; sub?: string; primary?: boolean; warn?: boolean; disabled?: boolean; onClick?: () => void
+}) {
+  return (
+    <button className={`pbtn ${sub ? 'two' : ''} ${primary ? 'primary' : ''}`} disabled={disabled} onClick={onClick}>
+      <span className="top">{icon && <Glyph code={icon} />}<span>{label}</span></span>
+      {sub && <span className={`sub ${warn ? 'warn' : ''}`}>{sub}</span>}
+    </button>
   )
 }
 
@@ -57,7 +153,7 @@ export function Shelf({ title, note, children, count, onSeeAll }: { title: strin
   useLayoutEffect(() => {
     const el = view.current
     if (!el) return
-    const fit = () => setPer(Math.max(2, Math.floor((el.clientWidth - 40 + 20) / (168 + 20))))
+    const fit = () => setPer(Math.max(2, Math.floor((el.clientWidth - 40 + 16) / (232 + 16))))
     fit()
     const ro = new ResizeObserver(fit)
     ro.observe(el)
