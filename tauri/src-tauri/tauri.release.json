@@ -1,0 +1,12 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "mainBinaryName": "MultiplayerEverything",
+  "bundle": {
+    "targets": ["nsis"],
+    "resources": { "engine/MultiplayerEverythingLauncher.exe": "MultiplayerEverythingLauncher.exe" },
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": { "installMode": "currentUser" }
+    }
+  }
+}

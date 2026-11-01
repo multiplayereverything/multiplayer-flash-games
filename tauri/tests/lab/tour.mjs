@@ -13,8 +13,12 @@ const games = (process.argv[3] ?? '').split(',').filter(Boolean)
 const launcher = process.env.FL_LAUNCHER_EXE ?? resolve(tauriDir, '..', '..', 'flash-launcher-multiplayer', 'build', 'Debug', 'MultiplayerEverythingLauncher.exe')
 const edgeDir = join(process.env.LOCALAPPDATA ?? '', 'fl-lab')
 const edgeDriver = process.env.MSEDGEDRIVER ?? readdirSync(edgeDir).map((d) => join(edgeDir, d, 'msedgedriver.exe')).find(existsSync)
-const app = join(process.env.CARGO_TARGET_DIR ?? join(tauriDir, 'src-tauri', 'target'), 'debug', 'app.exe')
-const env = { ...process.env, FL_LAUNCHER_EXE: launcher, FL_NO_DISCORD: '1' }
+// FL_APP: another build of the window, such as the shipped layout with the launcher beside it (then it must find
+// the launcher on its own, so FL_LAUNCHER_EXE is left out).
+const app = process.env.FL_APP ?? join(process.env.CARGO_TARGET_DIR ?? join(tauriDir, 'src-tauri', 'target'), 'debug', 'app.exe')
+const env = { ...process.env, FL_NO_DISCORD: '1' }
+if (process.env.FL_APP) delete env.FL_LAUNCHER_EXE
+else env.FL_LAUNCHER_EXE = launcher
 delete env.FL_LAUNCHER_CONFIG
 const driver = spawn('tauri-driver', ['--port', '4444', '--native-driver', edgeDriver], { env, stdio: 'ignore' })
 const wd = new Driver('http://127.0.0.1:4444')

@@ -72,3 +72,16 @@ It needs:
 `--no-build` reuses the last build, `--only coop,mods` runs some scenarios, and `--keep` keeps the sandbox.
 `FL_LAUNCHER_CONFIG` (another launcher.json for every call to the C++ launcher) is what points the window at the
 sandbox, and it works the same for clicking through one by hand.
+
+## Release build
+
+```powershell
+.\scripts\release.ps1
+```
+
+It builds and tests the C++ launcher (Release), copies it to `src-tauri/engine/`, runs the quick tests, and builds
+the installer with `src-tauri/tauri.release.json`. The installer puts `MultiplayerEverything.exe` next to
+`MultiplayerEverythingLauncher.exe`, which is where the window looks for the launcher, and installs WebView2 if
+the PC lacks it. It is for the current user only, so no admin prompt. Nothing is published.
+
+Not done yet: signing, and updates for the window itself. Those need a signing key and a release feed.
