@@ -89,7 +89,10 @@ export function SettingsPage({ lib, onChanged, onRunSetup }: { lib: Library; onC
       </section>
 
       <div className="set-foot">
-        <span>{t('settings.about', 'Multiplayer Everything Launcher')}</span>
+        <span>
+          {t('settings.about', 'Multiplayer Everything Launcher')}
+          {lib.players.filter((p) => p.found).map((p) => <span key={p.id} className="ver">{p.name} {p.version || 'installed'}</span>)}
+        </span>
         <button className="btn sm" onClick={onRunSetup}>Run setup again</button>
         {lib.website && <button className="linkbtn" onClick={() => open(lib.website)}><ExternalLink size={14} />{t('settings.github', 'Project page')}</button>}
       </div>

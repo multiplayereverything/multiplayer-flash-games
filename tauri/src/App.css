@@ -463,3 +463,13 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
    as Steam does for a game without wide art, and the sharp cover sits in front. */
 .gp-hero > .cover:not(.cover-pixel) img { filter: blur(8px) brightness(.55) saturate(1.15); transform: scale(1.12); }
 .slide > .cover.bg:not(.cover-pixel) img { filter: blur(3px) brightness(.8); transform: scale(1.04); }
+
+/* Play from the grid: a round red button on the art, shown while the card is pointed at or has the focus. */
+.tile { position: relative; }
+.card-play { position: absolute; z-index: 2; right: 10px; top: 9px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .7); opacity: 0; transform: scale(.9); transition: opacity .14s, transform .14s var(--ease); }
+.card-play .glyph { font-size: 15px; margin-left: 2px; }
+.tile:hover .card-play, .tile:focus-within .card-play { opacity: 1; transform: none; }
+.card-play:hover { background: var(--accent-hover); }
+.tile .badges.right { transition: opacity .14s; }
+.tile:hover .badges.right, .tile:focus-within .badges.right { opacity: 0; }
+.set-foot .ver { margin-left: 14px; }

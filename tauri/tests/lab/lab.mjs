@@ -457,6 +457,19 @@ const scenarios = {
     await wd.exec("navigator.getGamepads = () => []; window.dispatchEvent(new Event('gamepaddisconnected'))")
   },
 
+  async cardplay() {
+    await wd.click(nav('All games'))
+    await wd.exec("[...document.querySelectorAll('.card-c')].find(c => c.querySelector('.name')?.textContent === 'Relay Test').focus()")
+    clearArgs()
+    await wd.click("//div[contains(@class,'tile')][.//span[contains(@class,'name') and normalize-space(.)='Relay Test']]//button[contains(@class,'card-play')]")
+    const a = (await launchedWith()).join(' ')
+    await check('Play on a card starts the game from the grid', a.includes('relay.swf'), a)
+    await check('the settings page shows the versions', (await (async () => {
+      await wd.click("//button[contains(@class,'setbtn')]")
+      return wd.exec("return document.querySelector('.set-foot')?.textContent ?? ''")
+    })()).includes('Fake Player'))
+  },
+
   async lobbyquick() {
     await openGame('Lobby Test')
     await wd.click(panel('Quick play'))

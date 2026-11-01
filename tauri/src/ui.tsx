@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Cover } from './Cover'
 import type { Game, Library, ModInfo } from './api'
-import { stateLine } from './model'
+import { leadAction, stateLine } from './model'
 
 export function Pips({ n, colors }: { n: number; colors: string[] }) {
   return (
@@ -41,8 +41,9 @@ export function GradeChip({ grade, size = 22 }: { grade: string; size?: number }
 
 // A card as the C++ library draws one: the art across the top with its badges, then the name in the condensed
 // display font, the player pips and count, and the state. The selected card has a white outline.
-export function Tile({ game, lib, mods, playing, favorite, selected, rooms = 0, onOpen }: TileProps & { selected?: boolean; rooms?: number }) {
+export function Tile({ game, lib, mods, playing, favorite, selected, rooms = 0, onOpen, onPlay }: TileProps & { selected?: boolean; rooms?: number; onPlay?: () => void }) {
   const line = stateLine(game, lib, mods, playing)
+  const lead = leadAction(game)
   const t = (k: string, f: string) => lib.text[k] ?? f
   const notOnServer = game.site?.status === 'not-on-server'
   return (
@@ -70,6 +71,12 @@ export function Tile({ game, lib, mods, playing, favorite, selected, rooms = 0, 
           </span>
         </span>
       </button>
+      {/* Start from the grid, as Steam and Playnite allow: red, because it starts the game. */}
+      {onPlay && lead?.state === 'ready' && !game.comingSoon && (
+        <button className="card-play" aria-label={`${lead.label}: ${game.name}`} title={lead.label} onClick={onPlay}>
+          <Glyph code="E768" />
+        </button>
+      )}
     </div>
   )
 }

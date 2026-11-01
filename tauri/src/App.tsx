@@ -554,7 +554,7 @@ export default function App() {
   }
   const tileOf = (g: Game) => (
     <Tile key={g.id} game={g} lib={lib} mods={mods} playing={playingIds.has(g.id)} favorite={favs.has(g.id)}
-      selected={g.id === gameId} rooms={allRooms?.[g.id]?.rooms.length ?? 0} onOpen={() => go('game', g.id)} />
+      selected={g.id === gameId} rooms={allRooms?.[g.id]?.rooms.length ?? 0} onOpen={() => go('game', g.id)} onPlay={() => playLead(g)} />
   )
 
   const playable = lib.games.filter((g) => !g.comingSoon)
