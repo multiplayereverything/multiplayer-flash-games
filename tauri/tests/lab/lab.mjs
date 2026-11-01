@@ -55,7 +55,7 @@ const fails = join(work, 'fails')
 const env = {
   ...process.env,
   FL_LAUNCHER_EXE: launcher, FL_LAUNCHER_CONFIG: box.config, FL_FAKE_OUT: box.args, FL_FAKE_MS: String(FAKE_MS),
-  FL_NO_NAME_PROMPT: '1', FL_NO_SITE: '1',
+  FL_NO_NAME_PROMPT: '1', FL_NO_DISCORD: '1',
 }
 const driverProc = spawn('tauri-driver', ['--port', '4444', '--native-driver', edgeDriver], { env, stdio: 'ignore' })
 const wd = new Driver('http://127.0.0.1:4444')
@@ -209,6 +209,8 @@ const scenarios = {
   },
 
   async minimize() {
+    // The window comes back once every game it started has closed, so the games of earlier scenarios go first.
+    await waitFor(async () => !(await wd.exec("return document.querySelector('.island')?.textContent ?? ''")).includes('Playing'), FAKE_MS + 8000)
     await wd.click("//button[contains(@class,'setbtn')]")
     await wd.click("//button[@role='switch' and contains(@aria-label,'Minimize')]")
     await check('Minimize while a game runs is saved', (await waitFor(() => settings().minimize === 1 || settings().minimize === true)) === true)
@@ -243,7 +245,10 @@ const scenarios = {
   async download() {
     await openGame('Download Test')
     await check('a missing file says so', (await waitFor(async () => (await pill()).includes('missing'))) === true, await pill())
-    await wd.click(panel('Download game files'))
+    // Play on a game whose file is missing offers the download first.
+    await wd.click(panel('Play'))
+    await check('Play on a missing game offers the download', !!(await wd.find("//div[@role='dialog']//h2[starts-with(normalize-space(.),'Download')]", 4000).catch(() => null)))
+    await wd.click(inDialog('Download'))
     await check('Download fetches the file from the catalog', (await waitFor(async () => (await pill()).includes('Ready'), 20000)) === true, await pill())
     const file = join(work, 'games', 'dl.swf')
     await check('the downloaded file is in the games folder', existsSync(file) && readFileSync(file, 'utf8') === 'pretend game file')
@@ -346,6 +351,65 @@ const scenarios = {
     await wd.click(button('Continue'))
     await wd.click(button('Start playing'))
     await check('Start playing opens the launcher', !!(await wd.find("//nav[contains(@class,'navs')]").catch(() => null)))
+  },
+
+  async options() {
+    await openGame('Co-op Test')
+    await check('a co-op game offers its co-op save', (await wd.count("//select[@id='coop-save']")) === 1)
+    await wd.exec("const s = document.getElementById('coop-save'); s.value = '2'; s.dispatchEvent(new Event('change', { bubbles: true }))")
+    await check('a new co-op game warns that it replaces the progress', (await wd.exec("return document.querySelector('.psel small')?.textContent ?? ''")).includes('replaces'))
+    await wd.click("//div[contains(@class,'pcheck')][.//span[normalize-space(.)='Friendly fire']]//button[@role='switch']")
+    await check('a game setting is saved', (await waitFor(() => settings().games?.coop?.settings?.ff === '1')) === true)
+    await wd.exec("const s = document.getElementById('set-speed'); s.value = 'fast'; s.dispatchEvent(new Event('change', { bubbles: true }))")
+    await check('a game choice is saved', (await waitFor(() => settings().games?.coop?.settings?.speed === 'fast')) === true)
+    await wd.click(panel('Host a game'))
+    clearArgs()
+    await wd.click(inDialog('Host'))
+    let a = (await launchedWith()).join(' ')
+    await check('hosting passes the co-op save choice', a.includes('--coop-save new'), a)
+    await check('hosting passes the host settings', a.includes('--friendly-fire') && a.includes('--fast'), a)
+    await wd.click(panel('Join a game'))
+    clearArgs()
+    await wd.type("//input[@id='join-code']", 'zzzzz\uE007')
+    a = (await launchedWith()).join(' ')
+    await check('joining passes only the settings for everyone', a.includes('--fast') && !a.includes('--friendly-fire') && !a.includes('--coop-save'), a)
+    await check('Quick play finds the busiest open room', !!(await waitFor(async () => (await wd.exec("return [...document.querySelectorAll('.dpanel .pbtn')].map(b => b.textContent).join('|')")).includes('Join the busiest open room'), 8000)))
+    a = (await launch('Quick play')).join(' ')
+    await check('Quick play joins that room', a.includes('--coop-join-relay') && a.includes('ABCDE'), a)
+  },
+
+  async players() {
+    await openGame('Relay Test')
+    await check('the player choice shows when two players are found', (await wd.count("//select[@id='game-player']")) === 1)
+    await wd.exec("const s = document.getElementById('game-player'); s.value = 'second'; s.dispatchEvent(new Event('change', { bubbles: true }))")
+    await check('the chosen player is saved', (await waitFor(() => settings().games?.relaygame?.player === 'second')) === true)
+    const a = (await launch('Play')).join(' ')
+    await check('the game starts in the chosen player', a.includes('--second-player'), a)
+    await check('a running game shows as playing until it closes', !!(await waitFor(async () => (await wd.exec("return document.querySelector('.island')?.textContent ?? ''")).includes('Playing Relay Test'), 4000)))
+    await check('its play time is counted when it closes', (await waitFor(() => (settings().games?.relaygame?.seconds ?? 0) >= 5, FAKE_MS + 8000)) === true)
+    await wd.exec("const s = document.getElementById('game-player'); s.value = ''; s.dispatchEvent(new Event('change', { bubbles: true }))")
+    await waitFor(() => !settings().games?.relaygame?.player)
+  },
+
+  async community() {
+    await openGame('Relay Test')
+    const credit = await waitFor(() => wd.exec("return document.querySelector('.credit')?.textContent ?? ''"))
+    await check('a community mod credits its author', !!credit && credit.includes('Some Modder') && credit.includes('We read its code'), credit)
+    await check('its grade shows in the panel', (await wd.exec("return document.querySelector('.dpanel .grade')?.textContent")) === 'B')
+    await check('the status bar measures the server', /Server online \(\d+ ms\)/.test(await waitFor(() => wd.exec("return document.querySelector('.srv')?.textContent ?? ''").then((x) => /ms/.test(x) && x), 15000) || ''))
+  },
+
+  async keys() {
+    await wd.click(nav('All games'))
+    await wd.find("//button[contains(@class,'card-c')]")
+    await wd.exec("document.querySelector('.card-c').focus()")
+    const first = await wd.exec("return document.activeElement?.textContent")
+    await wd.exec("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))")
+    const next = await wd.exec("return document.activeElement?.classList.contains('card-c') ? document.activeElement.textContent : ''")
+    await check('arrow keys move between cards', !!next && next !== first, `${first} -> ${next}`)
+    await wd.exec("document.documentElement.dataset.theme = 'light'")
+    await check('the light theme switches the palette', (await wd.exec("return getComputedStyle(document.body).backgroundColor")) === 'rgb(255, 255, 255)')
+    await wd.exec("document.documentElement.dataset.theme = 'dark'")
   },
 
   async stats() {

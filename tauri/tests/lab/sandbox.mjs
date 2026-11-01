@@ -73,7 +73,8 @@ export function makeSandbox(work, fakePlayer) {
     downloads: { catalog: `http://127.0.0.1:${PORTS.http}/catalog.json`, modsInfo: `http://127.0.0.1:${PORTS.http}/` },
     rooms: { server: `127.0.0.1:${PORTS.rooms}`, refreshSeconds: 10 },
     players: [
-      { id: 'fake', name: 'Fake Player', paths: [fakePlayer], args: ['--fake-player'], flashvarArg: '-P${KEY}=${VALUE}' },
+      { id: 'fake', name: 'Fake Player', paths: [fakePlayer], args: ['--fake-player'], flashvarArg: '-P${KEY}=${VALUE}', coopSaveArg: '--coop-save' },
+      { id: 'second', name: 'Second Player', paths: [fakePlayer], args: ['--fake-player', '--second-player'] },
       { id: 'ruffle', name: 'Ruffle Together', paths: ['${PLAYERS_DIR}\\ruffle\\ruffle.exe'],
         install: { url: `http://127.0.0.1:${PORTS.http}/ruffle.zip`, sha256: sha256(ruffleZip), dir: '${PLAYERS_DIR}\\ruffle', exe: 'ruffle.exe' } },
     ],
@@ -83,7 +84,12 @@ export function makeSandbox(work, fakePlayer) {
     ],
     games: [
       {
-        id: 'coop', name: 'Co-op Test', players: '1-4 players (online co-op)', maxPlayers: 4, online: { id: 'coop', join: 'online' },
+        id: 'coop', name: 'Co-op Test', players: '1-4 players (online co-op)', maxPlayers: 4, online: { id: 'ruffle-coop', join: 'online' },
+        settings: [
+          { id: 'ff', type: 'checkbox', scope: 'host', label: 'Friendly fire', args: ['--friendly-fire'] },
+          { id: 'speed', type: 'choice', scope: 'all', label: 'Game speed', default: 'normal',
+            choices: [{ id: 'normal', label: 'Normal', args: [] }, { id: 'fast', label: 'Fast', args: ['--fast'] }] },
+        ],
         categories: ['flash', 'online', 'coop'], description: 'Stands in for a Ruffle Together co-op game.',
         guide: { steps: ['Press Host a game.', 'Send the code to a friend.', 'Start the mission.'], tips: ['A tip.'] },
         actions: [
@@ -132,6 +138,12 @@ export function makeSandbox(work, fakePlayer) {
     ],
   }
   write(join(work, 'launcher.json'), JSON.stringify(config, null, 2))
+  const siteGames = {
+    games: [{ id: 'relaygame', name: 'Relay Test', kind: 'flash', status: 'available', quality: 'B', version: '3', updated: '2026-10-30',
+      origin: 'community', reviewed: true, author: 'Some Modder', authorUrl: 'https://github.com/somemodder/relay-test',
+      synced: { see: 'synced', story: 'partly' } }],
+  }
+  write(join(work, 'data', 'site.json'), JSON.stringify({ at: Math.floor(Date.now() / 1000), games: JSON.stringify(siteGames) }))
   // A name and no minimizing, so nothing waits on a prompt and the window stays where WebDriver can see it.
   write(join(work, 'data', 'settings.json'), JSON.stringify({ playerName: 'Tester', online: true, minimize: 0 }))
   return { config: join(work, 'launcher.json'), gameDir, args: join(work, 'args.txt'), settings: join(work, 'data', 'settings.json') }

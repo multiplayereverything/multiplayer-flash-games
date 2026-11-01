@@ -46,6 +46,22 @@ export interface Game {
   actions: Action[]
   // What the website's games.json says (grade A-D or X, version, what stays in sync), when it knows the game.
   site?: SiteInfo
+  // The game's own options (checkboxes and choices that become command-line options) and, for Ruffle Together
+  // co-op, the save the host starts from.
+  settings: GameSetting[]
+  coopSave?: { supported: boolean; since: string; progress: boolean }
+  player: string  // the player picked for this game; empty = automatic
+}
+
+export interface GameSetting {
+  id: string
+  type: 'checkbox' | 'choice'
+  scope: string
+  label: string
+  since: string
+  enabled: boolean
+  value: string
+  choices: { id: string; label: string }[]
 }
 
 export interface SiteInfo {
@@ -54,6 +70,12 @@ export interface SiteInfo {
   version: string
   updated: string
   connect: string
+  community: boolean
+  reviewed: boolean
+  author: string
+  authorUrl: string
+  repo: string
+  maintainer: string
   synced: Record<string, 'synced' | 'partly' | 'unknown'>
 }
 
@@ -80,7 +102,10 @@ export interface Library {
   launcherVersion: string
   website: string
   logFile: string
-  players: { id: string; name: string; found: boolean; installable: boolean }[]
+  players: { id: string; name: string; found: boolean; installable: boolean; version: string; website: string }[]
+  theme: string
+  roomsServer: string
+  discord: boolean
   categories: Category[]
   games: Game[]
   user: Settings & { games: Record<string, UserGame> }
@@ -123,8 +148,16 @@ export async function loadMods(): Promise<Record<string, ModInfo>> {
 export const loadRooms = (game: string): Promise<Rooms> =>
   live ? invoke<Rooms>('rooms', { game }) : Promise.resolve({ server: 'sample', onServer: true, error: '', rooms: [] })
 
-export const launch = (game: string, action: string, code?: string, address?: string): Promise<number> =>
-  live ? invoke<number>('launch', { game, action, code, address }) : Promise.resolve(0)
+export const launch = (game: string, action: string, code?: string, address?: string, coopSave?: string): Promise<number> =>
+  live ? invoke<number>('launch', { game, action, code, address, coopSave }) : Promise.resolve(0)
+export const setGameSetting = (game: string, id: string, value: string): Promise<void> =>
+  live ? invoke('set_game_setting', { game, id, value }) : Promise.resolve()
+export const setGamePlayer = (game: string, player: string): Promise<void> =>
+  live ? invoke('set_game_player', { game, player }) : Promise.resolve()
+export interface PlayerUpdate { id: string; checked: boolean; updated: boolean; version: string; error: string }
+export const updatePlayers = (): Promise<{ players: PlayerUpdate[] }> =>
+  live ? invoke('update_players') : Promise.resolve({ players: [] })
+export const ping = (server: string): Promise<number> => (live ? invoke('ping', { server }) : Promise.reject(new Error('sample')))
 
 export const modJob = (op: 'install' | 'repair' | 'uninstall', game: string): Promise<void> =>
   live ? invoke('mod_job', { op, game }) : Promise.resolve()
@@ -262,7 +295,8 @@ function sampleLibrary(): Library {
   return {
     branding: { ...s.branding, playerColors: ['#E5484D', '#3E7BFA', '#2EBD6B', '#F5B83D', '#E5484D', '#3E7BFA'] },
     dataDir: '', flashpoint: '', gamesDir: '', defaultGamesDir: '', launcherVersion: 'sample', website: '', logFile: '',
-    players: [{ id: 'ruffle', name: 'Ruffle Together', found: true, installable: true }],
+    players: [{ id: 'ruffle', name: 'Ruffle Together', found: true, installable: true, version: '1.0.5', website: '' }],
+    theme: 'dark', roomsServer: '', discord: false,
     categories: s.categories,
     games: s.games.map((g) => ({
       id: g.id, name: g.name, description: g.description ?? '', players: g.players ?? '', maxPlayers: g.maxPlayers ?? 2,
@@ -270,6 +304,7 @@ function sampleLibrary(): Library {
       onlineId: g.online?.id ?? '', joinAction: g.online ? 'online' : '', comingSoon: SAMPLE_SOON.has(g.id), lobby: false, categories: g.categories ?? [],
       mod: g.mod ? { modName: g.name, publisher: g.mod.publisher ?? '', website: g.mod.website ?? '', gameName: g.mod.gameName ?? g.name, pinnedVersion: '' } : undefined,
       guide: { needs: [], steps: [], tips: [], links: g.actions.filter((a) => a.link).map((a) => ({ label: a.label, url: a.link! })) },
+      settings: [], player: '',
       actions: g.mod
         ? ['install', 'update', 'launch', 'repair', 'uninstall'].map((op) => action({ id: op, label: op, mod: op }))
         : g.online

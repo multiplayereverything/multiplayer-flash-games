@@ -348,7 +348,7 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
 .lobby-note { color: var(--muted); }
 
 /* ---------- messages, running games and mod jobs ---------- */
-.island { position: fixed; left: calc(var(--side-w) + (100vw - var(--side-w)) / 2); bottom: 44px; transform: translateX(-50%); z-index: 240; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.island { position: fixed; left: calc(var(--side-w) + (100vw - var(--side-w)) / 2); bottom: 44px; transform: translateX(-50%); z-index: 150; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .side.mini ~ .island { left: calc(60px + (100vw - 60px) / 2); }
 .isl { pointer-events: auto; position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; width: min(420px, 80vw); padding: 7px 12px 7px 7px; border-radius: 8px; background: var(--card2); border: 1px solid var(--line2); box-shadow: 0 14px 34px -12px rgba(0, 0, 0, .85); text-align: left; animation: rise .3s var(--ease) both; }
 .isl.note { padding: 10px 16px; justify-content: center; text-align: center; pointer-events: none; }  /* only informs: clicks reach what is under it */
@@ -409,3 +409,17 @@ main.enter-back > * { animation: slideBack .26s var(--ease) both; }
 /* Moving on is neutral: red stays for Start playing. */
 .btn.next { background: var(--ink); color: var(--bg); border-color: var(--ink); min-width: 120px; }
 .btn.next:hover { background: #fff; }
+
+/* ---------- the panel's choices: co-op save, the game's settings, the player ---------- */
+.psel { display: flex; flex-direction: column; gap: 4px; }
+.psel label { font-size: 12px; color: var(--muted); }
+.psel .sel { width: 100%; }
+.psel small { font-size: 12px; color: var(--muted); }
+.psel small:empty { display: none; }
+.psets { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+.pcheck { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.pcheck.off { opacity: .55; }
+.credit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 12px; color: var(--muted); }
+.credit .linkbtn { font-size: 12px; }
+/* Messages stay under dialogs, and every page keeps room at its foot so they never cover its last buttons. */
+.page, .g-body { padding-bottom: 130px; }

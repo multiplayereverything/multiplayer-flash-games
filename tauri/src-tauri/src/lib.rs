@@ -94,10 +94,16 @@ fn launch(
     action: String,
     code: Option<String>,
     address: Option<String>,
+    coop_save: Option<String>,
 ) -> Result<u32, String> {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
     let session = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let mut args = vec!["--launch".to_string(), format!("{game}:{action}"), "--json".into()];
+    // --wait: the launcher stays until the game exits, so the window knows it is running, its time is counted and
+    // Discord shows it.
+    let mut args = vec!["--launch".to_string(), format!("{game}:{action}"), "--json".into(), "--wait".into()];
+    if let Some(s) = coop_save.filter(|s| !s.is_empty() && s != "continue") {
+        args.extend(["--coop-save".into(), s]);
+    }
     if let Some(c) = code.filter(|c| !c.is_empty()) {
         args.extend(["--join".into(), c]);
     }
@@ -270,6 +276,50 @@ fn set_game_dir(shared: State<'_, Shared>, game: String, dir: String) -> Result<
     })
 }
 
+/// One of a game's own settings (a checkbox "1"/"0" or a choice id), as the C++ panel saves it.
+#[tauri::command]
+fn set_game_setting(shared: State<'_, Shared>, game: String, id: String, value: String) -> Result<(), String> {
+    edit_settings(&shared, |root| {
+        let e = game_entry(root, &game)?;
+        let sets = e.entry("settings").or_insert_with(|| serde_json::json!({}));
+        sets.as_object_mut().ok_or("settings isn't an object")?.insert(id, serde_json::Value::String(value));
+        Ok(())
+    })
+}
+
+/// The player that runs a game; empty goes back to automatic (the config's order).
+#[tauri::command]
+fn set_game_player(shared: State<'_, Shared>, game: String, player: String) -> Result<(), String> {
+    edit_settings(&shared, |root| {
+        let e = game_entry(root, &game)?;
+        if player.is_empty() {
+            e.remove("player");
+        } else {
+            e.insert("player".into(), serde_json::Value::String(player));
+        }
+        Ok(())
+    })
+}
+
+/// Brings the players the launcher installed up to their newest release (`--update-players --json`).
+#[tauri::command]
+async fn update_players() -> Result<serde_json::Value, String> {
+    blocking(|| engine::run_json(&["--update-players".into(), "--json".into()])).await
+}
+
+/// How long a connection to the central server takes, in milliseconds (the status bar's "Server online (N ms)").
+#[tauri::command]
+async fn ping(server: String) -> Result<u32, String> {
+    blocking(move || {
+        use std::net::{TcpStream, ToSocketAddrs};
+        let addr = server.to_socket_addrs().map_err(|e| e.to_string())?.next().ok_or("no address")?;
+        let start = std::time::Instant::now();
+        TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(4)).map_err(|e| e.to_string())?;
+        Ok(start.elapsed().as_millis() as u32)
+    })
+    .await
+}
+
 /// A game file found with Locate, for one action.
 #[tauri::command]
 fn set_game_file(shared: State<'_, Shared>, game: String, action: String, file: String) -> Result<(), String> {
@@ -349,7 +399,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             library, mods, rooms, launch, stop_session, mod_job, download_game, set_favorite, set_setting, set_game_dir,
-            set_game_file, lobby_start, lobby_send, open, install_player
+            set_game_file, lobby_start, lobby_send, open, install_player, set_game_setting, set_game_player,
+            update_players, ping
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

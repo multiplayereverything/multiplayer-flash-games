@@ -1,4 +1,4 @@
-// Screenshots of the first-run setup, step by step, as a brand-new player sees it (no name yet), for reviewing the
+﻿// Screenshots of the first-run setup, step by step, as a brand-new player sees it (no name yet), for reviewing the
 // design: node tests/lab/shots.mjs <out-folder>. Uses the lab's sandbox, servers and the last lab build.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -21,7 +21,7 @@ const work = join(tmpdir(), `fl-tauri-shots-${process.pid}`)
 const box = makeSandbox(work, join(dirname(launcher), 'launcher_tests.exe'))
 writeFileSync(box.settings, JSON.stringify({ online: true }))  // no name: the setup opens by itself
 const stop = startServers(work, PORTS)
-const env = { ...process.env, FL_LAUNCHER_EXE: launcher, FL_LAUNCHER_CONFIG: box.config, FL_NO_NAME_PROMPT: '1', FL_NO_SITE: '1' }
+const env = { ...process.env, FL_LAUNCHER_EXE: launcher, FL_LAUNCHER_CONFIG: box.config, FL_NO_NAME_PROMPT: '1', FL_NO_DISCORD: '1' }
 const driver = spawn('tauri-driver', ['--port', '4444', '--native-driver', edgeDriver], { env, stdio: 'ignore' })
 const wd = new Driver('http://127.0.0.1:4444')
 mkdirSync(out, { recursive: true })

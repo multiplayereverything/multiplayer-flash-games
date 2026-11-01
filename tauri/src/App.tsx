@@ -9,13 +9,13 @@ import { LobbyPage } from './LobbyPage'
 import { SettingsPage } from './SettingsPage'
 import { SetupPage } from './SetupPage'
 import {
-  downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, restoreWindow, onDownloadEnded, onHostStatus,
+  downloadGame, launch, live, loadLibrary, loadMods, loadRooms, minimizeWindow, modJob, ping, restoreWindow, updatePlayers, onDownloadEnded, onHostStatus,
   onLaunchEnded, onModProgress, pickFile, pickFolder, setFavorite, setGameDir, setGameFile, stopSession, windowControl,
   type Game, type Library, type ModInfo, type RelayStatus, type Room, type Settings,
 } from './api'
 import { agoText, isCoop, joinByCode, lastPlayed, leadAction, playersShort, statusOf } from './model'
 import { Glyph, Pips, Seg, Shelf, Tile } from './ui'
-import { usePad } from './usePad'
+import { moveFocus, usePad } from './usePad'
 import './App.css'
 
 type View = 'home' | 'library' | 'rooms' | 'settings' | 'game' | 'lobby'
@@ -163,6 +163,9 @@ export default function App() {
   }, [cat, sort])
   // The central server, as the C++ status bar shows it: asked once through a game's room list.
   const [server, setServer] = useState<'unknown' | 'checking' | 'online' | 'offline'>('unknown')
+  const [pingMs, setPingMs] = useState<number | null>(null)
+  // A game whose file is missing, opened from a Play outside its page: its page offers the download at once.
+  const [askDownload, setAskDownload] = useState('')
   // The first-run setup: opens when the launcher starts without a player name (the C++ window asks for one then
   // too), decided once so saving the name doesn't close it, and again from Settings.
   const [setupOpen, setSetupOpen] = useState<boolean | null>(null)
@@ -200,13 +203,18 @@ export default function App() {
   }, [refresh, refreshMods])
 
   const probe = lib?.user.online ? lib.games.find((g) => g.onlineId && !g.comingSoon)?.id : undefined
+  const roomsServer = lib?.roomsServer ?? ''
   useEffect(() => {
     if (!probe) return
     let alive = true
     const ask = () => {
       setServer((s) => (s === 'unknown' ? 'checking' : s))
       loadRooms(probe)
-        .then((r) => alive && setServer(r.onServer || !r.error ? 'online' : 'offline'))
+        .then((r) => {
+          if (!alive) return
+          setServer(r.onServer || !r.error ? 'online' : 'offline')
+          if (roomsServer) ping(roomsServer).then((ms) => alive && setPingMs(ms)).catch(() => alive && setPingMs(null))
+        })
         .catch(() => alive && setServer('offline'))
     }
     ask()
@@ -215,7 +223,31 @@ export default function App() {
       alive = false
       window.clearInterval(id)
     }
-  }, [probe])
+  }, [probe, roomsServer])
+
+  // Ruffle Together kept on its newest release, once per start, as the C++ launcher does: everyone in a co-op
+  // session has to run the same build.
+  const playersChecked = useRef(false)
+  const autoUpdate = !!lib?.user.autoUpdate && !!lib?.user.online
+  useEffect(() => {
+    if (!autoUpdate || playersChecked.current) return
+    playersChecked.current = true
+    updatePlayers()
+      .then((r) => {
+        const done = r.players.filter((x) => x.updated)
+        if (!done.length) return
+        const names = done.map((x) => `${lib?.players.find((pl) => pl.id === x.id)?.name ?? x.id} ${x.version}`).join(', ')
+        say((lib?.text['update.player'] ?? '${PLAYER} is installed.').replace('${PLAYER}', names), 'ok')
+        refresh()
+      })
+      .catch(() => {})
+  }, [autoUpdate, lib, refresh, say])
+
+  // The launcher.json theme: the C++ light palette when it asks for one.
+  const theme = lib?.theme ?? 'dark'
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'
+  }, [theme])
 
   useEffect(() => {
     const a = onLaunchEnded((e) => {
@@ -268,12 +300,17 @@ export default function App() {
   }, [notice])
 
   const actions: PageActions = {
-    run: (game, action, code, address) => {
-      if (action.state && action.state !== 'ready') {
-        say(`${game.name}: ${action.state === 'noFile' ? 'the game file is missing' : action.state === 'noPlayer' ? 'no Flash player found' : 'its server program is missing'}.`, 'error')
+    run: (game, action, code, address, coopSave) => {
+      if (action.state === 'noFile') {
+        setAskDownload(game.id)
+        go('game', game.id)
         return
       }
-      launch(game.id, action.id, code, address)
+      if (action.state && action.state !== 'ready') {
+        say(`${game.name}: ${action.state === 'noPlayer' ? 'no Flash player found' : 'its server program is missing'}.`, 'error')
+        return
+      }
+      launch(game.id, action.id, code, address, coopSave)
         .then((session) => {
           setPlaying((p) => new Map(p).set(session, game.id))
           say(code ? `Joining room ${code} in ${game.name}...` : `Starting ${game.name}...`, 'ok')
@@ -282,6 +319,7 @@ export default function App() {
         .catch((e) => say(String(e), 'error'))
     },
     openLobby: (game) => go('lobby', game.id),
+    refresh: () => void refresh(),
     stopHosting: (session) => {
       stopSession(session)
         .then(() => {
@@ -341,6 +379,7 @@ export default function App() {
 
   // Going somewhere draws the page fresh with its entrance; a game page rises, going back eases in from the left.
   function go(v: View, id = '') {
+    if (id !== askDownload) setAskDownload('')
     if (v === 'game' || v === 'lobby') {
       if (view !== 'game' && view !== 'lobby') setFrom(view)
       setGameId(id)
@@ -381,6 +420,9 @@ export default function App() {
       if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
         focusSearch()
+      } else if (e.key.startsWith('Arrow') && e.target instanceof HTMLElement && e.target.closest('.card-c, .nav, .seg')) {
+        e.preventDefault()
+        moveFocus(e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right')
       } else if (e.key === 'Escape' && !(e.target instanceof HTMLInputElement)) back()
       else if (e.key === 'F5') {
         e.preventDefault()
@@ -497,7 +539,8 @@ export default function App() {
     page = (
       <GamePage key={pageGame.id} game={pageGame} lib={lib} mods={mods} playing={playingIds.has(pageGame.id)}
         modLine={modLines[pageGame.id]} downloading={downloading.has(pageGame.id)} hosting={hosting[pageGame.id]}
-        favorite={favs.has(pageGame.id)} onFavorite={() => toggleFav(pageGame.id)} onBack={back} actions={actions} />
+        favorite={favs.has(pageGame.id)} onFavorite={() => toggleFav(pageGame.id)} onBack={back} actions={actions}
+        askDownload={askDownload === pageGame.id} />
     )
   } else if (view === 'rooms') {
     page = <RoomsPage lib={lib} onOpen={(g) => go('game', g.id)} onJoin={(g, code) => { const a = joinByCode(g); if (a) actions.run(g, a, code) }} />
@@ -602,7 +645,7 @@ export default function App() {
           </span>
           <span className="grow" />
           {server !== 'unknown' && (
-            <span className={`srv ${server}`}><i />{server === 'online' ? 'Server online' : server === 'checking' ? 'Checking the server...' : 'Server offline'}</span>
+            <span className={`srv ${server}`}><i />{server === 'online' ? `Server online${pingMs !== null ? ` (${pingMs} ms)` : ''}` : server === 'checking' ? 'Checking the server...' : 'Server offline'}</span>
           )}
           {ruffle && <span>{ruffle.name} {ruffle.found ? '\u2713' : <span className="tone-warn">missing</span>}</span>}
           {lib.flashpoint && <span>Flashpoint: {lib.flashpoint}</span>}

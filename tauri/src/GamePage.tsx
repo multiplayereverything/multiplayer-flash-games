@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, ExternalLink, Globe, Server } from 'lucide-react'
 import { Cover } from './Cover'
 import type { Action, Game, Library, ModInfo, RelayStatus, Room } from './api'
-import { copyText, loadRooms, open } from './api'
+import { copyText, loadRooms, open, setGamePlayer, setGameSetting } from './api'
 import {
   agoText, fileAction, hostChoices, isCoop, joinByAddress, joinByCode, lastPlayed, looksLikeAddress, mainActions, moreActions, newer,
   playedText, stateLine,
 } from './model'
-import { Glyph, PanelButton, SiteBlock, Slots } from './ui'
+import { Glyph, PanelButton, SiteBlock, Slots, Switch } from './ui'
 
 const SCRAMBLE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&'
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -143,7 +143,8 @@ function RoomsTab({ game, onJoinRoom }: { game: Game; onJoinRoom: (code: string)
 }
 
 export interface PageActions {
-  run: (game: Game, action: Action, code?: string, address?: string) => void
+  run: (game: Game, action: Action, code?: string, address?: string, coopSave?: string) => void
+  refresh: () => void
   modOp: (game: Game, op: 'install' | 'repair' | 'uninstall') => void
   openLobby: (game: Game) => void
   stopHosting: (session: number) => void
@@ -194,7 +195,7 @@ function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; name
 type Tab = 'overview' | 'guide' | 'versions' | 'rooms'
 
 export function GamePage({
-  game, lib, mods, playing, modLine, downloading, hosting, favorite, onFavorite, onBack, actions,
+  game, lib, mods, playing, modLine, downloading, hosting, favorite, onFavorite, onBack, actions, askDownload,
 }: {
   game: Game
   lib: Library
@@ -207,10 +208,17 @@ export function GamePage({
   onFavorite: () => void
   onBack: () => void
   actions: PageActions
+  askDownload?: boolean  // opened by Play on a game whose file is missing: offer the download at once
 }) {
   const [tab, setTab] = useState<Tab>('overview')
   const [showMore, setShowMore] = useState(false)
-  const [dialog, setDialog] = useState<'host' | 'join' | 'uninstall' | null>(null)
+  const [dialog, setDialog] = useState<'host' | 'join' | 'uninstall' | 'download' | null>(askDownload ? 'download' : null)
+  // The host's co-op save (0 continue, 1 from the solo save, 2 new game) and the game's own settings, as changed here.
+  const [saveChoice, setSaveChoice] = useState(0)
+  const [setValues, setSetValues] = useState<Record<string, string>>({})
+  const [rooms, setRooms] = useState<Room[] | null>(null)
+  const t = (k: string, fallback: string, vars: Record<string, string> = {}) =>
+    Object.entries(vars).reduce((x, [key, v]) => x.replace('${' + key + '}', v), lib.text[k] ?? fallback)
   const backBtn = useRef<HTMLButtonElement>(null)
   const title = useDecode(game.name)
   const mod = mods?.[game.id]
@@ -226,7 +234,42 @@ export function GamePage({
   const playerMissing = !game.mod && game.actions.some((a) => a.state === 'noPlayer') && !game.actions.some((a) => a.state === 'ready')
   const modName = game.mod?.gameName || game.name
   const u = lib.user.games[game.id]
-  const run = (a: Action, code?: string, address?: string) => actions.run(game, a, code, address)
+  const saveArg = (a: Action) => (a.coopHost && saveChoice > 0 && game.coopSave?.supported ? (saveChoice === 1 ? 'solo' : 'new') : undefined)
+  // A missing game file is offered for download first, as the C++ window does when Play is pressed.
+  const run = (a: Action, code?: string, address?: string) => {
+    if (a.state === 'noFile') {
+      setDialog('download')
+      return
+    }
+    actions.run(game, a, code, address, saveArg(a))
+  }
+  const online = !!game.onlineId && !game.comingSoon && !game.mod
+  // Quick play: the busiest open room with space, or host one when nobody is playing.
+  useEffect(() => {
+    if (!online || !lib.user.online) return
+    let alive = true
+    loadRooms(game.id).then((r) => alive && setRooms(r.rooms)).catch(() => alive && setRooms([]))
+    return () => {
+      alive = false
+    }
+  }, [game.id, online, lib.user.online])
+  const busiest = (rooms ?? []).filter((r) => r.max <= 0 || r.players < r.max).sort((a, b) => b.players - a.players)[0]
+  const quickPlay = () => {
+    if (game.lobby) return actions.openLobby(game)
+    const byCode = joinByCode(game)
+    if (busiest && byCode) return run(byCode, busiest.code)
+    const host = game.actions.find((a) => a.id === game.joinAction) ?? byCode
+    if (host) run(host)
+  }
+  const foundPlayers = lib.players.filter((p) => p.found)
+  const autoPlayer = foundPlayers[0]?.name
+  const settingValue = (id: string, value: string) => setValues[id] ?? value
+  const changeSetting = (id: string, value: string) => {
+    setSetValues((v) => ({ ...v, [id]: value }))
+    setGameSetting(game.id, id, value).catch(() => {})
+  }
+  const community = game.site?.community
+  const creditUrl = game.site?.authorUrl || (game.site?.repo ? `https://github.com/${game.site.repo}` : '')
   const hasGuide = game.guide.steps.length > 0 || game.guide.needs.length > 0 || game.guide.tips.length > 0
 
   useEffect(() => {
@@ -293,6 +336,15 @@ export function GamePage({
         <div className="gp-title">
           <h1 aria-label={game.name}>{title}</h1>
           {cats.length > 0 && <span className="cats">{cats.join(', ')}</span>}
+          {community && game.site && (
+            <span className="credit">
+              <span>Community mod by</span>
+              {creditUrl
+                ? <button className="linkbtn" onClick={() => open(creditUrl)}>{game.site.author || game.site.repo}</button>
+                : <b>{game.site.author || 'its author'}</b>}
+              <span className="muted">{game.site.reviewed ? 'We read its code.' : 'Not reviewed by us.'}</span>
+            </span>
+          )}
           {game.mod && <span className="cats">Mod for {modName}, by {game.mod.publisher || 'Multiplayer Everything'}</span>}
         </div>
       </div>
@@ -361,11 +413,31 @@ export function GamePage({
             {!game.comingSoon && game.lobby && (
               <PanelButton primary={!fileMissing} icon="E774" label="Play online" sub="Host a room or join one" onClick={() => actions.openLobby(game)} />
             )}
+            {!game.comingSoon && coop && game.coopSave && (
+              <div className="psel">
+                <label htmlFor="coop-save">{t('coopSave.label', 'Co-op save')}</label>
+                <select id="coop-save" className="sel" disabled={!game.coopSave.supported} value={saveChoice} onChange={(e) => setSaveChoice(Number(e.target.value))}>
+                  <option value={0}>{t('coopSave.continue', 'Continue co-op')}</option>
+                  <option value={1}>{t('coopSave.solo', 'Start from my solo save')}</option>
+                  <option value={2}>{t('coopSave.new', 'New game')}</option>
+                </select>
+                <small className={saveChoice > 0 ? 'tone-warn' : ''}>
+                  {!game.coopSave.supported ? t('coopSave.needs', 'Needs Ruffle Together ${VERSION} or newer.', { VERSION: game.coopSave.since })
+                    : saveChoice > 0 ? t('coopSave.replaces', 'This replaces your co-op progress for ${GAME} the first time the game saves.', { GAME: game.name })
+                    : game.coopSave.progress ? t('coopSave.progress', 'Co-op progress saved.') : ''}
+                </small>
+              </div>
+            )}
             {!game.comingSoon && coop && (
               <>
                 <PanelButton primary={!fileMissing} icon="E774" label="Host a game" onClick={() => setDialog('host')} />
                 <PanelButton icon="E774" label="Join a game" onClick={() => setDialog('join')} />
               </>
+            )}
+            {online && (coop || game.lobby || !!joinByCode(game)) && (
+              <PanelButton icon="E945" label={t('button.quickPlay', 'Quick play')}
+                sub={rooms === null ? 'Looking for open rooms...' : busiest ? t('button.quickJoin', 'Join the busiest open room') : t('button.quickHost', 'No rooms open: host one')}
+                onClick={quickPlay} />
             )}
             {!game.comingSoon && !game.mod && main.filter((a) => !(game.lobby && a.id === game.joinAction)).map((a, i) => (
               <PanelButton key={a.id} primary={!coop && !game.lobby && i === 0 && a.state === 'ready'} icon={a.icon} label={a.label}
@@ -389,6 +461,33 @@ export function GamePage({
                 {a.description && <span className="sub">{a.description}</span>}
               </button>
             ))}
+            {!game.comingSoon && !game.mod && game.settings.length > 0 && (
+              <div className="psets">
+                {game.settings.map((st) => st.type === 'checkbox' ? (
+                  <div key={st.id} className={`pcheck ${st.enabled ? '' : 'off'}`}
+                    title={st.enabled ? undefined : t('coopSave.needs', 'Needs Ruffle Together ${VERSION} or newer.', { VERSION: st.since })}>
+                    <Switch on={settingValue(st.id, st.value) === '1'} label={st.label} onChange={(v) => st.enabled && changeSetting(st.id, v ? '1' : '0')} />
+                    <span>{st.label}</span>
+                  </div>
+                ) : (
+                  <div key={st.id} className="psel">
+                    <label htmlFor={`set-${st.id}`}>{st.label}</label>
+                    <select id={`set-${st.id}`} className="sel" disabled={!st.enabled} value={settingValue(st.id, st.value)} onChange={(e) => changeSetting(st.id, e.target.value)}>
+                      {st.choices.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!game.comingSoon && !game.mod && foundPlayers.length > 1 && (
+              <div className="psel">
+                <label htmlFor="game-player">{t('detail.player', 'Player')}</label>
+                <select id="game-player" className="sel" value={game.player} onChange={(e) => setGamePlayer(game.id, e.target.value).then(actions.refresh)}>
+                  <option value="">{autoPlayer ? t('detail.playerAuto', 'Automatic (${PLAYER})', { PLAYER: autoPlayer }) : t('detail.playerAutoNone', 'Automatic')}</option>
+                  {foundPlayers.map((pl) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="prow">
               <button className={`pbtn ${favorite ? 'faved' : ''}`} aria-pressed={favorite} onClick={onFavorite}>
                 <span className="top"><Glyph code={favorite ? 'E735' : 'E734'} /><span>Favorite</span></span>
@@ -402,6 +501,16 @@ export function GamePage({
 
       {dialog === 'host' && <HostDialog game={game} onClose={() => setDialog(null)} onHost={(a) => (setDialog(null), run(a))} />}
       {dialog === 'join' && <JoinDialog game={game} onClose={() => setDialog(null)} onJoin={(a, code, address) => (setDialog(null), run(a, code, address))} />}
+      {dialog === 'download' && fileAct && (
+        <Dialog title={t('download.title', 'Download ${GAME}?', { GAME: game.name })} onClose={() => setDialog(null)}>
+          <p className="dialog-note">The game file isn't on this PC yet. The launcher downloads it from the game catalog and checks it against its published checksum, or you can point it at a copy you already have.</p>
+          <div className="dialog-row">
+            <button className="btn" onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn" onClick={() => (setDialog(null), actions.locate(game, fileAct))}>Locate a copy</button>
+            <button className="btn next" onClick={() => (setDialog(null), actions.download(game))}>{t('download.yes', 'Download')}</button>
+          </div>
+        </Dialog>
+      )}
       {dialog === 'uninstall' && (
         <Dialog title={`Uninstall ${game.mod?.modName || game.name}?`} onClose={() => setDialog(null)}>
           <p className="dialog-note">The mod's files are removed and the game's own files it replaced are put back.</p>
