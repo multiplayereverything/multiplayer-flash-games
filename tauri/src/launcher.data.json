@@ -1087,7 +1087,10 @@
    "color": "#D6264F",
    "colorEnd": "#2A0A16",
    "description": "Co-op for Spooky's Jump Scare Mansion: HD Renovation (Steam). Play the mansion with up to four friends: shared rooms, keys, items, specimens, the axe and endings, with a LAN server list. Everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "Spooky's Jump Scare Mansion"
+   },
+   "site": "spooky",
    "actions": []
   },
   {
@@ -1101,7 +1104,10 @@
    "color": "#3C9B45",
    "colorEnd": "#12331A",
    "description": "Co-op for Baldi's Basics Plus (Steam): up to four players share one school, with Baldi, the other characters, items, the shop and elevators in sync. Play over your network or online through Steam. Everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "Baldi's Basics Plus"
+   },
+   "site": "baldi",
    "actions": []
   },
   {
@@ -1115,7 +1121,10 @@
    "color": "#E58AB0",
    "colorEnd": "#3A1226",
    "description": "Co-op for MiSide (Steam): two to four players play the story together, with Mita, the cutscenes and the dialogue in sync. Friends join through Steam, your network or an address. Everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "MiSide"
+   },
+   "site": "miside",
    "actions": []
   },
   {
@@ -1129,7 +1138,10 @@
    "color": "#D9A21B",
    "colorEnd": "#3A2A07",
    "description": "Online co-op for Cuphead: both cups, the host's save, bosses, run-and-gun and plane levels and the world map, over Steam invites or LAN. Originally made by Germanized; this fork is maintained by Multiplayer Everything. Everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "Cuphead"
+   },
+   "site": "cuphead",
    "actions": []
   },
   {
@@ -1143,7 +1155,10 @@
    "color": "#7BD16B",
    "colorEnd": "#0F3A1E",
    "description": "Co-op for Rick and Morty: Virtual Rick-ality (Steam, VR): two players share one game as Morty clones in the same garage, see each other's head and hands, and pass things from hand to hand, with the story and the lines in sync. Everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "Rick and Morty: Virtual Rick-ality"
+   },
+   "site": "rickandmorty",
    "actions": []
   },
   {
@@ -1157,7 +1172,10 @@
    "color": "#2BA7C9",
    "colorEnd": "#06303D",
    "description": "Two-player online co-op for Dave the Diver: dive the Blue Hole together, see each other, and share the fish, the story and the sushi bar. Join a friend through Steam or LAN. Originally made by S1ii; this fork is maintained by Multiplayer Everything. Unofficial community mod. Everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "DAVE THE DIVER"
+   },
+   "site": "davethediver",
    "actions": []
   },
   {
@@ -1211,7 +1229,10 @@
    "color": "#E07A1F",
    "colorEnd": "#3A1B07",
    "description": "Co-op for Grand Theft Auto: San Andreas (PC, version 1.0 US): the whole story with up to four friends, with missions, cutscenes, money, saves and gang territories in sync. Based on CoopAndreas. You need your own copy of the game, downgraded to 1.0, and everyone needs the same version.",
-   "mod": {},
+   "mod": {
+    "gameName": "Grand Theft Auto: San Andreas"
+   },
+   "site": "gta",
    "actions": []
   },
   {
@@ -1226,7 +1247,9 @@
    "description": "Co-op for Spore with Galactic Adventures (GOG and Steam) by WoodyWizard: two to four friends evolve in one world through every stage, from the cell to space. Made by WoodyWizard, not by us. Everyone needs the same version.",
    "mod": {
     "publisher": "WoodyWizard",
-    "website": "https://github.com/WoodyWizard/SporeCoop"
+    "website": "https://github.com/WoodyWizard/SporeCoop",
+    "gameName": "Spore",
+    "version": "0.7.3.1"
    },
    "actions": [
     {
@@ -1249,7 +1272,9 @@
    "description": "Split-screen co-op for Little Nightmares (2017) Enhanced Edition by vladimirwoxi: two players on one PC, two gamepads, one half of the screen each. Not online. Made by vladimirwoxi, not by us.",
    "mod": {
     "publisher": "vladimirwoxi",
-    "website": "https://github.com/vladimirwoxi/little-nightmares-1-coop"
+    "website": "https://github.com/vladimirwoxi/little-nightmares-1-coop",
+    "gameName": "Little Nightmares",
+    "version": "0.7.1"
    },
    "actions": [
     {
@@ -1272,7 +1297,9 @@
    "description": "Online co-op for Forager (Steam) by melogo5: up to four players in one world, with shared resources, progress and dungeons, joined through Steam invites or your network. Made by melogo5, not by us. Everyone needs the same version.",
    "mod": {
     "publisher": "melogo5",
-    "website": "https://github.com/melogo5/forager-coop"
+    "website": "https://github.com/melogo5/forager-coop",
+    "gameName": "Forager",
+    "version": "0.1.1"
    },
    "actions": [
     {

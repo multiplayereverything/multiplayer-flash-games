@@ -17,7 +17,8 @@ export interface Game {
   image?: string
   imageFocus?: number
   description?: string
-  mod?: { publisher?: string; website?: string }
+  mod?: { publisher?: string; website?: string; gameName?: string; version?: string }
+  site?: string
   actions: Action[]
 }
 
