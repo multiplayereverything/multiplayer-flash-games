@@ -661,7 +661,8 @@ export default function App() {
     <div id="app">
       <aside className={`side ${mini ? 'mini' : ''}`}>
         <div className="brand">
-          <button id="brand" onClick={() => go('home')}>
+          <button id="brand" onClick={() => go('home')} aria-label={mini ? lib.branding.title : undefined}>
+            <img className="logo" src="/icon.png" alt="" />
             <span className="word lbl"><b>{lib.branding.title}</b><small>{lib.branding.subtitle}</small></span>
           </button>
         </div>

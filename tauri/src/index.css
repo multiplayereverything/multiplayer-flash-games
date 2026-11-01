@@ -36,7 +36,7 @@
   --grade-x: #9aa1ac;
   --on-grade: #15171c;
   --ease: cubic-bezier(.2, .8, .2, 1);
-  --side-w: 240px;
+  --side-w: 264px;
   /* 10pt Segoe UI body; Bahnschrift SemiBold for headings and buttons, its Condensed cut for names and titles. */
   --font-title: 'Bahnschrift SemiBold', Bahnschrift, 'Segoe UI', system-ui, sans-serif;
   --font-name: 'Bahnschrift SemiBold Condensed', 'Bahnschrift SemiBold', Bahnschrift, 'Segoe UI', sans-serif;
