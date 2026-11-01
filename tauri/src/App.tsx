@@ -1,8 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import {
-  ChevronLeft, ChevronRight, Gamepad2, Minus, PanelLeft, Play, Radio, Search,
-  Square, Users, X,
-} from 'lucide-react'
 import { Cover } from './Cover'
 import { GamePage, type PageActions } from './GamePage'
 import { LobbyPage } from './LobbyPage'
@@ -72,7 +68,7 @@ function Slider({ games, lib, onOpen, onPlay }: { games: Game[]; lib: Library; o
               </span>
               <p>{g.description}</p>
               <div className="acts">
-                {lead?.state === 'ready' && <button className="btn main" tabIndex={n === i ? 0 : -1} onClick={() => onPlay(g)}><Play size={16} fill="currentColor" />{lead.label}</button>}
+                {lead?.state === 'ready' && <button className="btn main" tabIndex={n === i ? 0 : -1} onClick={() => onPlay(g)}><Glyph code="E768" size={16} />{lead.label}</button>}
                 <button className="btn" tabIndex={n === i ? 0 : -1} onClick={() => onOpen(g)}>Details</button>
               </div>
             </div>
@@ -86,8 +82,8 @@ function Slider({ games, lib, onOpen, onPlay }: { games: Game[]; lib: Library; o
             {games.map((g, n) => <button key={g.id} className={`dot ${n === i ? 'on' : ''}`} aria-label={g.name} onClick={() => setI(n)} />)}
           </div>
           <div className="sl-arrows">
-            <button aria-label="Previous" onClick={() => setI((i + games.length - 1) % games.length)}><ChevronLeft size={18} /></button>
-            <button aria-label="Next" onClick={() => setI((i + 1) % games.length)}><ChevronRight size={18} /></button>
+            <button aria-label="Previous" onClick={() => setI((i + games.length - 1) % games.length)}><Glyph code="E76B" size={18} /></button>
+            <button aria-label="Next" onClick={() => setI((i + 1) % games.length)}><Glyph code="E76C" size={18} /></button>
           </div>
         </>
       )}
@@ -114,7 +110,7 @@ function RoomsPage({ lib, all, onJoin, onOpen }: { lib: Library; all: Record<str
       {!rooms && <div className="loading">Asking the central server...</div>}
       {rooms?.length === 0 && (
         <div className="empty">
-          <Radio size={40} />
+          <Glyph code="E716" size={40} />
           <h2>No open rooms right now</h2>
           <p>{error || 'Host one from a game\'s page and it shows up here for everyone.'}</p>
         </div>
@@ -608,9 +604,9 @@ export default function App() {
           <h1>{catName}</h1>
           <p>{lib.branding.subtitle || 'Every game here plays with friends.'}</p>
           <label className="bigsearch">
-            <Search size={20} />
+            <Glyph code="E721" size={20} />
             <input ref={search} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games and mods" spellCheck={false} />
-            {query && <button className="clear" aria-label="Clear the search" onClick={() => setQuery('')}><X size={16} /></button>}
+            {query && <button className="clear" aria-label="Clear the search" onClick={() => setQuery('')}><Glyph code="E8BB" size={16} /></button>}
           </label>
         </div>
         <div className="dctl">
@@ -628,7 +624,7 @@ export default function App() {
           <div className={`grid ${lib.user.compactCards ? 'compact' : ''}`}>{shown.map(tileOf)}</div>
         ) : (
           <div className="empty">
-            <Gamepad2 size={40} />
+            <Glyph code="E7FC" size={40} />
             <h2>Nothing matches</h2>
             <p>{cat === 'favorites' && !favs.size ? 'No favorites yet. Open a game and press the star.' : 'Try another search, or turn a filter off.'}</p>
           </div>
@@ -690,7 +686,7 @@ export default function App() {
             <Glyph code="E713" /><span className="lbl">Settings</span>
           </button>
           <button className="minibtn" onClick={() => setMini(!mini)} aria-label={mini ? 'Expand the sidebar' : 'Collapse the sidebar'} title={mini ? 'Expand' : 'Collapse'}>
-            <PanelLeft size={17} />
+            <Glyph code="E700" size={17} />
           </button>
         </div>
       </aside>
@@ -699,9 +695,9 @@ export default function App() {
         <div className="topbar" data-tauri-drag-region>
           {live && (
             <div className="win">
-              <button aria-label="Minimize" onClick={() => windowControl('minimize')}><Minus size={16} /></button>
-              <button aria-label="Maximize" onClick={() => windowControl('maximize')}><Square size={13} /></button>
-              <button className="close" aria-label="Close" onClick={() => windowControl('close')}><X size={17} /></button>
+              <button aria-label="Minimize" onClick={() => windowControl('minimize')}><Glyph code="E921" size={16} /></button>
+              <button aria-label="Maximize" onClick={() => windowControl('maximize')}><Glyph code="E922" size={13} /></button>
+              <button className="close" aria-label="Close" onClick={() => windowControl('close')}><Glyph code="E8BB" size={17} /></button>
             </div>
           )}
         </div>
@@ -778,7 +774,7 @@ export default function App() {
           <button className="isl" key={g.id} onClick={() => go('game', g.id)}>
             <span className="th"><Cover game={g} className="fill" /></span>
             <span className="k"><b>{hosting[g.id] ? `Hosting ${g.name}` : `Playing ${g.name}`}</b><small>{hosting[g.id] ? `${hosting[g.id].relay.peers.filter((p) => !p.host).length} joined` : 'The launcher keeps watch until it closes'}</small></span>
-            {hosting[g.id] && <Users size={18} className="pc" />}
+            {hosting[g.id] && <Glyph code="E716" size={18} className="pc" />}
           </button>
         ))}
         {notice && (

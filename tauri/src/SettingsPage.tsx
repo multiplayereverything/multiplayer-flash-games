@@ -1,9 +1,8 @@
 // Settings, as the C++ Settings window has them: each change is saved at once to the launcher's own settings.json,
 // so both windows agree.
 import { useState, type ReactNode } from 'react'
-import { ExternalLink, FolderOpen } from 'lucide-react'
 import { open, pickFolder, setSetting, type Library, type Settings } from './api'
-import { Switch } from './ui'
+import { Glyph, Switch } from './ui'
 
 function Row({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
@@ -79,11 +78,11 @@ export function SettingsPage({ lib, onChanged, onRunSetup }: { lib: Library; onC
               const dir = await pickFolder(t('settings.pickFolder', 'Choose the folder for game files'), gamesDir)
               if (dir) save('gamesDir', dir)
             }}>{t('settings.change', 'Change...')}</button>
-            <button className="btn sm icon" aria-label={t('settings.open', 'Open')} title={t('settings.open', 'Open')} disabled={!gamesDir} onClick={() => open(gamesDir).catch((e) => setError(String(e)))}><FolderOpen size={16} /></button>
+            <button className="btn sm icon" aria-label={t('settings.open', 'Open')} title={t('settings.open', 'Open')} disabled={!gamesDir} onClick={() => open(gamesDir).catch((e) => setError(String(e)))}><Glyph code="E838" size={16} /></button>
             <button className="btn sm" disabled={!u.gamesDir} onClick={() => save('gamesDir', '')}>{t('settings.reset', 'Use default')}</button>
           </Row>
           <Row title={t('settings.log', 'Open log folder')} note={logDir}>
-            <button className="btn sm icon" aria-label={t('settings.log', 'Open log folder')} disabled={!logDir} onClick={() => open(logDir).catch((e) => setError(String(e)))}><FolderOpen size={16} /></button>
+            <button className="btn sm icon" aria-label={t('settings.log', 'Open log folder')} disabled={!logDir} onClick={() => open(logDir).catch((e) => setError(String(e)))}><Glyph code="E838" size={16} /></button>
           </Row>
         </div>
       </section>
@@ -94,7 +93,7 @@ export function SettingsPage({ lib, onChanged, onRunSetup }: { lib: Library; onC
           {lib.players.filter((p) => p.found).map((p) => <span key={p.id} className="ver">{p.name} {p.version || 'installed'}</span>)}
         </span>
         <button className="btn sm" onClick={onRunSetup}>Run setup again</button>
-        {lib.website && <button className="linkbtn" onClick={() => open(lib.website)}><ExternalLink size={14} />{t('settings.github', 'Project page')}</button>}
+        {lib.website && <button className="linkbtn" onClick={() => open(lib.website)}><Glyph code="E8A7" size={14} />{t('settings.github', 'Project page')}</button>}
       </div>
       {error && <p className="error-text">{error}</p>}
     </div>

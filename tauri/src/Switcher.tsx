@@ -1,7 +1,6 @@
 // Ctrl+K: Discord's quick switcher for this launcher. Type a few letters of a game, or of a page (Open rooms,
 // Settings), and Enter goes there; the arrow keys pick another match.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Search } from 'lucide-react'
 import { Cover } from './Cover'
 import type { Game, Library } from './api'
 import { Glyph } from './ui'
@@ -64,7 +63,7 @@ export function Switcher({ lib, pages, onPick, onClose }: { lib: Library; pages:
     <div className="scrim top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="switcher" role="dialog" aria-modal="true" aria-label="Go to a game or page">
         <label className="sw-input">
-          <Search size={18} />
+          <Glyph code="E721" size={18} />
           <input ref={input} value={q} placeholder="Go to a game or page" spellCheck={false} aria-label="Go to a game or page"
             onChange={(e) => (setQ(e.target.value), setAt(0))} onKeyDown={onKey} />
           <kbd>Esc</kbd>

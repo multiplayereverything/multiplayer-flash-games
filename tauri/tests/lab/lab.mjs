@@ -446,7 +446,15 @@ const scenarios = {
     await wd.exec("document.documentElement.dataset.theme = 'light'")
     await check('the light theme switches the palette', (await wd.exec("return getComputedStyle(document.body).backgroundColor")) === 'rgb(255, 255, 255)')
     await check('the selected sidebar row stays dark in the light theme', (await wd.exec("return getComputedStyle(document.querySelector('.nav.on, .setbtn.on')).backgroundColor")) === 'rgb(43, 50, 72)')
+    await check('status text in the light theme is dark enough to read', (await wd.exec("const e = document.createElement('span'); e.className = 'tone-ok'; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c")) === 'rgb(22, 122, 67)')
     await wd.exec("document.documentElement.dataset.theme = 'dark'")
+    await openGame('Co-op Test')
+    await wd.click(panel('Host a game'))
+    // As a real key press: from the focused element up to the window.
+    await wd.exec("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))")
+    // Escape closes the dialog only: the page underneath stays (it doesn't also go Back).
+    await check('closing a dialog puts the focus back on its button', !!(await waitFor(async () => (await wd.count("//div[@role='dialog']")) === 0 &&
+      (await wd.exec("return document.activeElement?.textContent ?? ''")).includes('Host a game'), 3000)))
   },
 
   async pad() {

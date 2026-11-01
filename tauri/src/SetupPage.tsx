@@ -2,9 +2,8 @@
 // name and installs Ruffle Together quietly on its first start; here each of those is a step people can see, with
 // the folders and the few choices that matter. Everything saves to the shared settings.json as it is chosen.
 import { useEffect, useState, type ReactNode } from 'react'
-import { Check, FolderOpen, Gamepad2, Globe, LoaderCircle, Minus, MonitorPlay, Square, X } from 'lucide-react'
 import { installPlayer, live, open, pickFolder, setGameDir, setSetting, windowControl, type Library, type ModInfo, type Settings } from './api'
-import { Switch } from './ui'
+import { Glyph, Switch } from './ui'
 
 type StepId = 'welcome' | 'name' | 'player' | 'pcgames' | 'folder' | 'choices' | 'done'
 
@@ -89,9 +88,9 @@ export function SetupPage({
         <h1>Welcome to {lib.branding.title}</h1>
         <p className="lead">{lib.branding.subtitle ? `${lib.branding.subtitle}, played together.` : 'Games to play together.'} A minute of setup and you're in.</p>
         <div className="feats">
-          <Feat icon={<Globe size={20} />} title="Online with friends" text="Host a room and send the five-letter code. No port forwarding, no VPN." />
-          <Feat icon={<MonitorPlay size={20} />} title="Flash games" text="Classic Flash games, made multiplayer, running in Ruffle Together." />
-          <Feat icon={<Gamepad2 size={20} />} title="PC game mods" text="Installed into your own copy of a game, and taken back out just as cleanly." />
+          <Feat icon={<Glyph code="E774" size={20} />} title="Online with friends" text="Host a room and send the five-letter code. No port forwarding, no VPN." />
+          <Feat icon={<Glyph code="E7F4" size={20} />} title="Flash games" text="Classic Flash games, made multiplayer, running in Ruffle Together." />
+          <Feat icon={<Glyph code="E7FC" size={20} />} title="PC game mods" text="Installed into your own copy of a game, and taken back out just as cleanly." />
         </div>
       </>
     )
@@ -120,10 +119,10 @@ export function SetupPage({
             </div>
             <div className="acts">
               {player?.found ? (
-                <span className="tick ok" aria-label="Installed"><Check size={16} strokeWidth={3} /></span>
+                <span className="tick ok" aria-label="Installed"><Glyph code="E73E" size={16} /></span>
               ) : (
                 <button className="btn" disabled={installing || !player?.installable} onClick={install}>
-                  {installing ? <><LoaderCircle size={16} className="spin" />Installing...</> : 'Install'}
+                  {installing ? <><Glyph code="E895" size={16} className="spin" />Installing...</> : 'Install'}
                 </button>
               )}
             </div>
@@ -149,7 +148,7 @@ export function SetupPage({
                 </div>
                 <div className="acts">
                   {m?.gameFound ? (
-                    <span className="tick ok" aria-label="Found"><Check size={16} strokeWidth={3} /></span>
+                    <span className="tick ok" aria-label="Found"><Glyph code="E73E" size={16} /></span>
                   ) : (
                     <button className="btn sm" disabled={!m} onClick={() => chooseGame(g.id, gameName)}>Choose folder</button>
                   )}
@@ -168,14 +167,14 @@ export function SetupPage({
         <p className="lead">Flash games download here the first time you play them.</p>
         <div className="card setup-card">
           <div className="set-row">
-            <FolderOpen size={20} className="muted" />
+            <Glyph code="E838" size={20} className="muted" />
             <div className="k"><b className="path">{gamesDir}</b></div>
             <div className="acts">
               <button className="btn sm" onClick={async () => {
                 const d = await pickFolder(t('settings.pickFolder', 'Choose the folder for game files'), gamesDir)
                 if (d) void save('gamesDir', d)
               }}>{t('settings.change', 'Change...')}</button>
-              <button className="btn sm icon" aria-label="Open the folder" title="Open the folder" disabled={!gamesDir} onClick={() => open(gamesDir)}><FolderOpen size={16} /></button>
+              <button className="btn sm icon" aria-label="Open the folder" title="Open the folder" disabled={!gamesDir} onClick={() => open(gamesDir)}><Glyph code="E838" size={16} /></button>
             </div>
           </div>
         </div>
@@ -210,9 +209,9 @@ export function SetupPage({
         <span className="word"><b>{lib.branding.title}</b></span>
         {live && (
           <div className="win">
-            <button aria-label="Minimize" onClick={() => windowControl('minimize')}><Minus size={16} /></button>
-            <button aria-label="Maximize" onClick={() => windowControl('maximize')}><Square size={13} /></button>
-            <button className="close" aria-label="Close" onClick={() => windowControl('close')}><X size={17} /></button>
+            <button aria-label="Minimize" onClick={() => windowControl('minimize')}><Glyph code="E921" size={16} /></button>
+            <button aria-label="Maximize" onClick={() => windowControl('maximize')}><Glyph code="E922" size={13} /></button>
+            <button className="close" aria-label="Close" onClick={() => windowControl('close')}><Glyph code="E8BB" size={17} /></button>
           </div>
         )}
       </div>

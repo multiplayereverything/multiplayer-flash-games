@@ -85,11 +85,13 @@ input:focus-visible, select:focus-visible { outline: 0; }
   --dim: #5b6472;
   --accent: #b42a33;
   --accent-hover: #9c232b;
-  --online: #2f6feb;
+  /* The C++ light palette's green, amber and blue fall under 4.5:1 as text on its panels (3.2-3.9), so the text
+     shades here are darker: 4.6:1 or better on #e9edf3, checked with a contrast checker. */
+  --online: #1f56c4;
   --on-online: #fff;
-  --ok: #1f9d57;
-  --warn: #b7791f;
-  --bad: #d93636;
+  --ok: #167a43;
+  --warn: #8a5a12;
+  --bad: #c42f2f;
   --line: #e3e7ec;
   --line2: #d5dae1;
   --line3: #b9c0ca;

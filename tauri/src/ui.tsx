@@ -1,6 +1,5 @@
 // The pieces every page uses: box-art tiles, shelves that page sideways, pickers, switches and a menu.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Cover } from './Cover'
 import type { Game, Library, ModInfo } from './api'
 import { leadAction, stateLine } from './model'
@@ -23,10 +22,10 @@ interface TileProps {
 }
 
 // A glyph from Segoe Fluent Icons, as launcher.json and the C++ window name them: the character or its hex code.
-export function Glyph({ code, className }: { code: string; className?: string }) {
+export function Glyph({ code, className, size }: { code: string; className?: string; size?: number }) {
   if (!code) return null
   const ch = /^[0-9A-F]{4}$/i.test(code) ? String.fromCodePoint(parseInt(code, 16)) : code
-  return <i className={`glyph ${className ?? ''}`} aria-hidden="true">{ch}</i>
+  return <i className={`glyph ${className ?? ''}`} style={size ? { fontSize: size } : undefined} aria-hidden="true">{ch}</i>
 }
 
 // The website's quality grade: a rounded square with the letter, in the grade's color.
@@ -174,8 +173,8 @@ export function Shelf({ title, note, children, count, onSeeAll }: { title: strin
           {onSeeAll && <button className="see" onClick={onSeeAll}>See all</button>}
           {pages > 1 && (
             <>
-              <button className="ar" aria-label="Previous" disabled={at === 0} onClick={() => setPage(at - 1)}><ChevronLeft size={18} /></button>
-              <button className="ar" aria-label="Next" disabled={at >= pages - 1} onClick={() => setPage(at + 1)}><ChevronRight size={18} /></button>
+              <button className="ar" aria-label="Previous" disabled={at === 0} onClick={() => setPage(at - 1)}><Glyph code="E76B" size={18} /></button>
+              <button className="ar" aria-label="Next" disabled={at >= pages - 1} onClick={() => setPage(at + 1)}><Glyph code="E76C" size={18} /></button>
             </>
           )}
         </div>
@@ -193,7 +192,7 @@ function useDismiss(open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => !root.current?.contains(e.target as Node) && close()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), close())
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopImmediatePropagation(), close())
     window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey, true)
     return () => {
@@ -212,13 +211,13 @@ export function Picker<T extends string>({ label, value, options, onChange }: { 
   return (
     <div className="pill-sel" ref={root}>
       <button className={`drop ${open ? 'open' : ''}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="pl">{label}</span><span>{current?.name}</span><ChevronDown size={14} />
+        <span className="pl">{label}</span><span>{current?.name}</span><Glyph code="E70D" size={14} />
       </button>
       {open && (
         <div className="menu dropmenu" role="listbox">
           {options.map((o) => (
             <button key={o.id} role="option" aria-selected={o.id === value} onClick={() => { onChange(o.id); setOpen(false) }}>
-              <span>{o.name}</span>{o.id === value && <Check size={15} className="ck" />}
+              <span>{o.name}</span>{o.id === value && <Glyph code="E73E" size={15} className="ck" />}
             </button>
           ))}
         </div>

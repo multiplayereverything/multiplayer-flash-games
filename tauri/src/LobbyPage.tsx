@@ -1,11 +1,10 @@
 // A game's lobby: host or join a room, see who is in it, chat, get ready, and the host starts; the C++ launcher runs
 // the room (--lobby-session) and opens the game for each player when it starts.
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Copy, Send } from 'lucide-react'
 import {
   copyText, loadRooms, lobbySend, lobbyStart, onLobby, type Game, type Library, type LobbyRequest, type LobbySnapshot,
 } from './api'
-import { Seg, Switch } from './ui'
+import { Glyph, Seg, Switch } from './ui'
 
 export function LobbyPage({ game, lib, quick, onClose }: { game: Game; lib: Library; quick?: boolean; onClose: () => void }) {
   const t = (k: string, fallback: string, vars: Record<string, string> = {}) =>
@@ -92,7 +91,7 @@ export function LobbyPage({ game, lib, quick, onClose }: { game: Game; lib: Libr
 
   return (
     <div className="page narrow">
-      <div><button className="btn glass" onClick={() => { if (open) void lobbySend({ op: 'leave' }); onClose() }}><ArrowLeft size={17} />{open ? 'Leave room' : 'Back'}</button></div>
+      <div><button className="btn glass" onClick={() => { if (open) void lobbySend({ op: 'leave' }); onClose() }}><Glyph code="E72B" size={17} />{open ? 'Leave room' : 'Back'}</button></div>
       <div className="head">
         <div>
           <h1>{t('lobby.title', 'Play ${GAME} online', { GAME: game.name })}</h1>
@@ -157,7 +156,7 @@ export function LobbyPage({ game, lib, quick, onClose }: { game: Game; lib: Libr
                 <div className="room-code">{room.code || '...'}</div>
                 <small className="muted">{room.roomName}{room.reconnecting ? '  (reconnecting...)' : ''}</small>
               </div>
-              {room.code && <button className="btn sm" onClick={() => copyText(room.code).then(() => setNote('Copied.'))}><Copy size={15} />Copy</button>}
+              {room.code && <button className="btn sm" onClick={() => copyText(room.code).then(() => setNote('Copied.'))}><Glyph code="E8C8" size={15} />Copy</button>}
             </div>
             <div className="lobby-slots">
               {Array.from({ length: room.maxPlayers }, (_, slot) => {
@@ -191,7 +190,7 @@ export function LobbyPage({ game, lib, quick, onClose }: { game: Game; lib: Libr
             </div>
             <div className="chat-input">
               <input className="field" value={chat} maxLength={200} placeholder="Say something" onChange={(e) => setChat(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
-              <button className="btn sm icon" aria-label="Send" onClick={send}><Send size={15} /></button>
+              <button className="btn sm icon" aria-label="Send" onClick={send}><Glyph code="E724" size={15} /></button>
             </div>
           </div>
         </div>

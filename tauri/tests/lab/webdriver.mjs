@@ -106,7 +106,9 @@ export async function waitFor(fn, ms = 8000) {
 }
 
 // XPath for a button whose visible text is exactly `t`, or (prefix) starts with it.
+// A Fluent glyph may come first (one character, hidden from screen readers), so the text after it counts too.
 export const button = (t, prefix = false) =>
-  prefix ? `//button[starts-with(normalize-space(.), ${q(t)})]` : `//button[normalize-space(.)=${q(t)}]`
+  prefix ? `//button[starts-with(normalize-space(.), ${q(t)}) or starts-with(substring(normalize-space(.), 2), ${q(t)})]`
+    : `//button[normalize-space(.)=${q(t)} or substring(normalize-space(.), 2)=${q(t)}]`
 // A quoted XPath string that may contain either kind of quote.
 export const q = (t) => (t.includes("'") ? `"${t}"` : `'${t}'`)

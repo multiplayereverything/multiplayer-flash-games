@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, ExternalLink, Globe, Server } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { Cover } from './Cover'
 import type { Action, Game, Library, ModInfo, RelayStatus, Room } from './api'
 import { copyText, loadRooms, open, setGamePlayer, setGameSetting } from './api'
@@ -38,19 +38,29 @@ function useDecode(text: string): string {
 
 function Dialog({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null)
+  // Focus goes into the dialog, and back to the button that opened it when it closes.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    // After the key that closed it is done: an Enter that submits must not also press the button focus returns to.
+    return () => {
+      window.setTimeout(() => opener?.isConnected && opener.focus(), 0)
+    }
+  }, [])
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input, select, .btn.main')?.focus()
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), onClose())
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopImmediatePropagation(), onClose())
     window.addEventListener('keydown', esc, true)
     return () => window.removeEventListener('keydown', esc, true)
   }, [onClose])
-  return (
+  // On the document itself: inside the page, the page's entrance animation would keep it under the messages.
+  return createPortal(
     <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog" role="dialog" aria-modal="true" aria-label={title} ref={box}>
         <h2>{title}</h2>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -72,8 +82,8 @@ function HostDialog({ game, onHost, onClose }: { game: Game; onHost: (a: Action)
         <>
           <div className="opt-h">Friends join with</div>
           <div className="choice">
-            <button aria-pressed={relay} onClick={() => setRelay(true)}><Globe size={18} /><span><b>A room code</b><small>Through the central server. No port forwarding.</small></span></button>
-            <button aria-pressed={!relay} onClick={() => setRelay(false)}><Server size={18} /><span><b>Your IP address</b><small>Straight to this PC: LAN, Radmin VPN or ZeroTier.</small></span></button>
+            <button aria-pressed={relay} onClick={() => setRelay(true)}><Glyph code="E774" size={18} /><span><b>A room code</b><small>Through the central server. No port forwarding.</small></span></button>
+            <button aria-pressed={!relay} onClick={() => setRelay(false)}><Glyph code="E968" size={18} /><span><b>Your IP address</b><small>Straight to this PC: LAN, Radmin VPN or ZeroTier.</small></span></button>
           </div>
         </>
       )}
@@ -98,7 +108,7 @@ function JoinDialog({ game, onJoin, onClose }: { game: Game; onJoin: (a: Action,
   return (
     <Dialog title={`Join ${game.name}`} onClose={onClose}>
       <label className="opt-h" htmlFor="join-code">{byAddress ? 'Room code or the host\'s address' : 'Room code'}</label>
-      <input id="join-code" className="field code" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go()} placeholder="ABCDE" spellCheck={false} />
+      <input id="join-code" className="field code" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), go())} placeholder="ABCDE" spellCheck={false} />
       <p className="dialog-note">{address ? (byAddress ? 'Connects straight to the host.' : 'This game joins with a room code.') : 'The five letters the host sees.'}</p>
       <div className="dialog-row">
         <button className="btn" onClick={onClose}>Cancel</button>
@@ -330,7 +340,7 @@ export function GamePage({
       <div className="gp-amb"><Cover game={game} className="fill" /></div>
       <div className="gp-hero">
         <Cover game={game} className="fill" />
-        <button ref={backBtn} className="btn glass gp-back" onClick={onBack}><ArrowLeft size={17} />Back</button>
+        <button ref={backBtn} className="btn glass gp-back" onClick={onBack}><Glyph code="E72B" size={17} />Back</button>
       </div>
       <div className="gp-top">
         <div className="gp-cover"><Cover game={game} className="fill" /></div>
@@ -373,7 +383,7 @@ export function GamePage({
                 {g.needs.length > 0 && <div className="card"><h3>What you need</h3><ul className="steps">{g.needs.map((s) => <li key={s}>{s}</li>)}</ul></div>}
                 {g.steps.length > 0 && <div className="card"><h3>How to play</h3><ol className="steps">{g.steps.map((s) => <li key={s}>{s}</li>)}</ol></div>}
                 {g.tips.length > 0 && <div className="card"><h3>Tips</h3><ul className="steps">{g.tips.map((s) => <li key={s}>{s}</li>)}</ul></div>}
-                {g.links.length > 0 && <div className="acts">{g.links.map((l) => <button key={l.url} className="btn" onClick={() => open(l.url)}><ExternalLink size={16} />{l.label}</button>)}</div>}
+                {g.links.length > 0 && <div className="acts">{g.links.map((l) => <button key={l.url} className="btn" onClick={() => open(l.url)}><Glyph code="E8A7" size={16} />{l.label}</button>)}</div>}
               </>
             )}
             {tab === 'versions' && (
