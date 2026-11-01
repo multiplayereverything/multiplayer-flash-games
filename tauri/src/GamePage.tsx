@@ -49,6 +49,22 @@ function factsOf(game: Game): Facts {
   return out
 }
 
+function Glyph({ code }: { code: string }) {
+  return <span className="icon" aria-hidden="true">{String.fromCodePoint(parseInt(code, 16))}</span>
+}
+
+// A button with a second line, as the C++ panel draws one: the icon and label on top, the line under them from the
+// left edge, and on a red one that can start, a small arrow at the right.
+function ActionButton({ icon, label, sub, primary }: { icon: string; label: string; sub: string; primary?: boolean }) {
+  return (
+    <button className={`btn two-line ${primary ? 'primary' : ''}`}>
+      <span className="btn-top"><Glyph code={icon} /><span className="btn-main">{label}</span></span>
+      <span className="btn-sub">{sub}</span>
+      {primary && <span className="btn-arrow" aria-hidden="true">{'▶'}</span>}
+    </button>
+  )
+}
+
 function Slots({ n }: { n: number }) {
   return (
     <div className="slots" aria-label={`${n} player slots`}>
@@ -189,13 +205,13 @@ export function GamePage({
           {st.kind === 'soon' && <div className="soon-note">Not playable yet: this mod is still being built.</div>}
           {lead && game.online && !game.mod && (
             <>
-              <button className="btn primary"><span className="btn-main">Host a game</span><span className="btn-sub">Friends join with a room code</span></button>
-              <button className="btn"><span className="btn-main">Join a game</span><span className="btn-sub">With a friend's code</span></button>
-              <button className="btn"><span className="btn-main">Play offline</span><span className="btn-sub">The game on your own</span></button>
+              <button className="btn primary center"><Glyph code="E774" />Host a game</button>
+              <button className="btn center"><Glyph code="E774" />Join a game</button>
+              <ActionButton icon="E77B" label="Play offline" sub="The game on your own" />
             </>
           )}
           {lead && (game.mod || !game.online) && (
-            <button className="btn primary"><span className="btn-main">{lead.label}</span><span className="btn-sub">{lead.sub}</span></button>
+            <ActionButton primary icon={game.mod ? (st.kind === 'installed' ? 'E768' : 'E896') : 'E768'} label={lead.label} sub={lead.sub} />
           )}
           {game.actions.filter((a) => a.link).map((a) => (
             <a className="btn link" key={a.id} href={a.link} target="_blank" rel="noreferrer">
@@ -205,7 +221,7 @@ export function GamePage({
           ))}
           <div className="row">
             <button className="btn quiet" onClick={onFavorite} aria-pressed={favorite}>
-              <span className="icon">{favorite ? '' : ''}</span> Favorite
+              <Glyph code={favorite ? 'E735' : 'E734'} />Favorite
             </button>
             <button className="btn quiet">Folder</button>
           </div>

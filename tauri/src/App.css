@@ -212,6 +212,14 @@
   color: color-mix(in srgb, var(--warning) 45%, var(--text));
 }
 .btn.link .btn-sub { color: var(--text); }
+/* Host and Join: icon and label centered, one line, as tall as the others */
+.btn.center { min-height: 52px; flex-direction: row; align-items: center; justify-content: center; gap: 10px; }
+.btn .icon { font-size: 16px; }
+/* Two lines: icon and label on top, the smaller line under them from the left edge */
+.btn.two-line { position: relative; min-height: 52px; padding: 6px 14px 7px; }
+.btn-top { display: flex; align-items: center; gap: 10px; }
+.btn.two-line .btn-sub { padding-left: 0; }
+.btn-arrow { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 13px; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .btn.quiet { min-height: 34px; font-size: 16.7px; flex-direction: row; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
 
